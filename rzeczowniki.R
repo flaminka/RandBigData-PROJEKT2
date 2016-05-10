@@ -53,6 +53,10 @@ rzeczowniki <- function(body) {
                elem$base, 
                "")
     })
+
+    # usunięcie ciapków
+    rzeczowniki <- stri_replace_all_fixed(rzeczowniki, "'", "")
+    rzeczowniki <- stri_replace_all_fixed(rzeczowniki, '"', "")
     
     rzeczowniki <- rzeczowniki[stri_length(rzeczowniki) > 0]
     tolower(paste0(rzeczowniki, collapse = "|"))
