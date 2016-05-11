@@ -20,7 +20,8 @@ ortografia <- function(body) {
                     add_headers("Content-Type" = "application/json"), encode = "json")
     
     
-    if (!is.null(content(korekta, "parsed")$error)) {
+    if (!is.null(content(korekta, "parsed")$error) |
+        is.null(content(korekta, "parsed")$output)) {
         warning("Korekta nie powiodła się", immediate. = TRUE)
         return(body)
     } else {
@@ -30,9 +31,8 @@ ortografia <- function(body) {
 
 
 
-
 for (i in 1:nrow(dane)) {
-    dane[i, "body"] <- ortografia(dane$body[i]) 
+    try(dane[i, "body"] <- ortografia(body=dane$body[i]))
     cat("\r", i, "/", nrow(dane))
 }
 cat("\n")
@@ -46,44 +46,50 @@ rzeczowniki <- function(body) {
                 add_headers("Content-Type" = "application/json"), 
                 encode = "json")
     
+    
     tmp <- content(nlp, "parsed")
+    
+    if (!is.list(tmp)) return("")
     
     rzeczowniki <- sapply(tmp$elements, function(elem) { 
         ifelse(!is.null(elem$cTag) && elem$cTag == "Noun", 
                elem$base, 
                "")
     })
-
+    
+    rzeczowniki <- rzeczowniki[stri_length(rzeczowniki) > 0]
+    
     # usunięcie ciapków
     rzeczowniki <- stri_replace_all_fixed(rzeczowniki, "'", "")
     rzeczowniki <- stri_replace_all_fixed(rzeczowniki, '"', "")
     
-    rzeczowniki <- rzeczowniki[stri_length(rzeczowniki) > 0]
     tolower(paste0(rzeczowniki, collapse = "|"))
 }
-
 
 
 dane <- cbind(dane, rzeczowniki = rep("", nrow(dane)))
 
 for (i in 1:nrow(dane)) {
-    dane[i, "rzeczowniki"] <- rzeczowniki(dane[i, "body"])
+    try(dane[i, "rzeczowniki"] <- rzeczowniki(dane[i, "body"]))
     cat("\r", i, "/", nrow(dane))
 }
 cat("\n")
 
 write.csv(dane, file = "dane.csv")
 
+
+
+# dane <- read.csv("dane.csv")
+# 
+# head(dane)
+# 
+
 #head(dane[,c("body", "rzeczowniki")], 1)
 
-#sort(table(unlist(stri_split_fixed(dane$rzeczowniki, "|"))))
+# nrow(dane)
+# colnames(dane)
+# View(dane[sample(nrow(dane), 100), c("body", "rzeczowniki")])
 
+#tab <- sort(table(unlist(stri_split_fixed(dane$rzeczowniki, "|"))))
 
-
-
-
-
-
-
-
-
+# rev(tab)[1:100]
