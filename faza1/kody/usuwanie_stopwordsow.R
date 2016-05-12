@@ -12,7 +12,7 @@ usuwanie_stopwordsow <- function(wektor, stopwordsy=""){
    
    stopwordsy <- unlist(strsplit(a, split=", ", fixed=T))
    
-   stopwordsy <- c(stopwordsy, "go", "sam", "bez")
+   stopwordsy <- c(stopwordsy, "go", "sam", "bez", "zl", "tamto", "raz", "że", "sa")
    
    wektor <- stri_replace_all_regex(wektor, pattern="\\s", replacement = "\\_")
    
