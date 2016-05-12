@@ -104,4 +104,4 @@ char <- charakterystyczne(slowa, 0.3)
 
 char
 
-dane[dane$thread_id == watki[325], "body"]
+dane[dane$thread_id == watki[280], "body"]
