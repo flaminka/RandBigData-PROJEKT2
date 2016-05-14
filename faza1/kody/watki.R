@@ -1,32 +1,8 @@
 library(dplyr)
 library(stringi)
+library(tm)
+library(googleVis)
 
-options(stringsAsFactors = FALSE)
-dane <- read.csv("../dane/dane_ost.csv")
-
-# Konwersja na utf-8, na Windowsie trzeba zakomentować
-dane <- lapply(dane, function(x) 
-    if(is.character(x)) stri_encode(x, from = "cp-1250", to = "utf-8")
-    else x)
-dane <- data.frame(dane)
-
-
-liczby_postow <- table(dane$thread_id)
-
-# liczby watków o zadanej liczbie postów
-table(liczby_postow)
-
-# na razie ograniczę się do wątków niekrótszych niż 10 postów
-watki <- names(liczby_postow)[liczby_postow >= 10]
-
-# wybrano
-length(watki)
-# wątków z
-length(unique(dane$thread_id))
-
-
-# watek <- watki[1]
-#sapply(dane, class)
 
 #' Funkcja wybierająca rzeczowniki dla zadanego watku
 #' 
@@ -36,7 +12,6 @@ length(unique(dane$thread_id))
 #' @import magrittr, dplyr
 #' @export
 #' 
-#'
 slowa_w_watku <- function(watek, dane) {
     
     dane %>% 
@@ -44,24 +19,11 @@ slowa_w_watku <- function(watek, dane) {
         .$rzeczowniki -> 
         rzeczowniki
     
-    
     unlist(strsplit(rzeczowniki, "|", fixed = TRUE))
 }
 
 
-slowa <- lapply(watki, slowa_w_watku, dane)
 
-
-source("ranking_slowa.R")
-
-
-rankingi <- sapply(slowa, function(sl) ranking_slowa(sl)$word[1:5])
-
-View(rankingi)
-
-
-
-library(tm)
 
 #' Funkcja wybierająca charakterystyczne słowa
 #' 
@@ -70,18 +32,18 @@ library(tm)
 #'  
 #' @param slowa Lista wektorów ze słowami. Każdy wektor zawiera słowa z
 #'  jednego dokumentu.
+#' @param ile Liczba zwracanych charakterystycznych słów dla każdego wektora.
 #' @param min_tfidf Minimalna waga tfidf, dla której słowo uznawane jest za
-#' charakterystyczne. Im większy parametr min_tfidf, tym mniej słów jest zwracana.
+#' charakterystyczne. Im większy parametr min_tfidf, tym mniej słów jest zwracanych.
 #' @value Lista charakterystycznych słów
 #' @import tm
 #' @export
 #' 
-charakterystyczne <- function(slowa, min_tfidf) {
-    
+charakterystyczne <- function(slowa, ile = NULL, min_tfidf = NULL) {
     
     # łaczenie słów wewnątrz jednego wątku w napis
     napis <- sapply(slowa, paste, collapse = " ")
-   
+    
     korpus <- VCorpus(VectorSource(slowa))
     
     # macierz liczby wystąpień słów
@@ -93,15 +55,80 @@ charakterystyczne <- function(slowa, min_tfidf) {
     # zamiana macierzy rzadkiej na gęstą
     M <- as.matrix(tfidf)
     
-    # z każdego dokumentu wybieramy te słowa, które mają tfidf >= min_tfidf
-    char <- apply(M, 1, function(row) names(row[row >= min_tfidf]))
+    if (is.null(ile)) {
+        # z każdego dokumentu wybieramy te słowa, które mają tfidf >= min_tfidf
+        apply(M, 1, function(row) names(row[row >= min_tfidf]))
+        
+    } else {
+        char <- apply(M, 1, function(row) names(sort(row, decreasing = TRUE)[1:ile]))
+        as.list(data.frame(char))
+    }
+}
+
+
+
+#' TODO: ZROBIĆ DOKUMENTACJĘ
+#' 
+#' @import dplyr, tm, googleVis
+#'
+wykres_watki_keywords <- function(dane, keywords, min_postow = 2, 
+                                  ile_char = 5, zerowe = FALSE) {
     
-    char[sapply(char, length) > 0]
+    
+    liczby_postow <- table(dane$thread_id)
+    
+    watki <- names(liczby_postow)[liczby_postow >= min_postow]
+    
+    slowa <- lapply(watki, slowa_w_watku, dane)
+    
+    # zlicza słowa klucze w watkach
+    ile_keywords <- sapply(slowa, function(x) sum(x %in% keywords))
+    ile_keywords <- data.frame(thread_id = as.numeric(watki), 
+                               ile_keywords = ile_keywords)
+    
+    
+    # ramka z charakterystycznymi słowami odzielonymi '<br>'
+    char <- charakterystyczne(slowa, ile = 5)
+    char <- sapply(char, paste, collapse = "<br>")
+    char <- data.frame(thread_id = as.integer(watki), char = char)
+    
+    # daty założenia wątków
+    dane %>% group_by(thread_id) %>%
+        arrange(created_at) %>%
+        slice(1) %>%     # pierwszy wiersz w każdej grupie
+        ungroup() %>%
+        select(thread_id, created_at) ->
+        daty
+    
+    # łączenie 3 ramek
+    ramka <- inner_join(daty, ile_keywords,  by = "thread_id")
+    ramka <- inner_join(ramka, char, by = "thread_id")
+    
+    # przygotowanie danych do wyświetlenia w "chmurce"
+    ramka$ile_keywords.html.tooltip <- paste(ramka$thread_id, ramka$char, sep = "<br>")
+    ramka$char <- NULL
+    
+    if (!zerowe) ramka <- filter(ramka, ile_keywords != 0)
+    
+    gvisLineChart(data=ramka, xvar = "created_at", 
+                  yvar = c("ile_keywords", "ile_keywords.html.tooltip"), 
+                  options=list(width=1000, height=500, 
+                               lineWidth = 0,
+                               pointSize = 5,
+                               legend='none',
+                               tooltip="{isHtml:'true'}",
+                               hAxis="{title:'Data utworzenia'}",
+                               vAxis="{title:'Liczba słow kluczowych'}"))
     
 }
 
-char <- charakterystyczne(slowa, 0.3)
 
-char
 
-dane[dane$thread_id == watki[280], "body"]
+
+
+
+
+
+
+
+

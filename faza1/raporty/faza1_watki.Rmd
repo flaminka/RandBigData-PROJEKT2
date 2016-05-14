@@ -1,0 +1,61 @@
+
+# Wątki
+
+```{r, echo = FALSE, message=FALSE}
+library(knitr)
+library(ggplot2)
+source("../kody/watki.R")
+
+options(stringsAsFactors = FALSE)
+dane <- read.csv("../dane/dane_ost.csv")
+
+# Konwersja na utf-8, na Windowsie trzeba zakomentować
+dane <- lapply(dane, function(x) 
+    if(is.character(x)) stri_encode(x, from = "cp-1250", to = "utf-8")
+    else x)
+dane <- data.frame(dane)
+
+dane$created_at <- as.POSIXct(dane$created_at)
+```
+
+
+W zbiorze danych znajdują się **15594** posty zgrupowane w **3276** wątkach. Średnia liczba postów w wątku wynosi **4.76**, natomiast mediana jest równa **3**.
+
+```{r, echo = FALSE, message=FALSE, fig.align='center'}
+
+data.frame(x = table(dane$thread_id)) %>%
+    ggplot(aes(x=x.Freq)) +
+    geom_histogram() +
+    xlab("Liczba postów w wątku") +
+    ylab("Liczność") +
+    ggtitle("Rozkład liczby postów w wątkach")
+```
+
+Posty w jednym wątku powinny mieć zbliżony temat, dlatego w dalszej analizie wątki będziemy traktować jak jeden tekst. 
+Aby znaleźć problemy jakie napotykają klienci, szukaliśmy słów kluczowych: **awaria, problem, uwaga**. Wątki z dużą liczbą takich słów będą prawdopodobnie zawierały uwagi dotyczące usług banku. Poniższy wykres przedstawia zależność liczby takich słów w wątkach od czasu. 
+
+```{r, results="asis", echo = FALSE}
+wykres <- wykres_watki_keywords(dane, c("awaria", "problem", "uwaga"))
+print(wykres, "chart")
+```
+
+
+Dodatkowo po najechaniu na punkt, jest wyświetlane id wątku oraz 5 najbardziej *charakterystycznych* słów. *Charakterystyczność* słowa dla wątku mierzyliśmy za pomocą wag **tfidf**. Waga **tfidf** dla słowa $i$ w tekście $j$ jest zdefiniowana jako
+\[  \mathrm{tfidf}_{ij}  = \mathrm{tf}_{ij} \cdot  \mathrm{idf}_{i},  \]
+gdzie $\mathrm{tf}_{ij}$ jest częstością występowania słowa $i$ w tekście $j$, natomiast
+$\mathrm{idf}_{i}$ jest logarytmem ilorazu liczby tekstów przez liczbę dokumentów, w których występuje $i$-te słowo. 
+
+Gdy słowo występuje w większości tekstów, idf będzie małe, dzięki czemu waga dla tego słowa też będzie mała. Natomiast gdy słowo występuje w niewielu tekstach, to idf będzie duże, przez co waga $\mathrm{tfidf}$ również będzie rosła.
+
+Poniżej przedstawiamy dwa wątki z największą liczbą słów kluczowych.
+
+```{r, results="asis", echo = FALSE}
+watek1 <- stri_replace_all_fixed(dane[dane$thread_id == 221343, "body"], "\n", " ")
+cat("#### id = 221343 \n \n")
+cat(paste0("* ", watek1, collapse = "\n"))
+cat("\n \n \n")
+watek2 <- stri_replace_all_fixed(dane[dane$thread_id == 1200716, "body"], "\n", " ")
+cat("#### id = 1200716 \n \n")
+cat(paste0("* ", watek2, collapse = "\n"))
+```
+
