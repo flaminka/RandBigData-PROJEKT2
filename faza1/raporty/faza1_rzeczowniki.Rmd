@@ -1,0 +1,428 @@
+---
+title: "Faza1_rzeczowniki"
+author: "Ewa Baranowska"
+date: "13 maja 2016"
+output: html_document
+---
+
+```{r setup, cache=FALSE, include=FALSE}
+library(knitr)
+opts_chunk$set(echo = F, cache = F, warning = F, message = F)
+```
+TODO
+-pakiet
+-prezentacja?
+-slownik bledow
+-poprawić w rankingu by alior bank rozbic na alior i bank, bo i tak są liczone osobno (zmienić liczby w markdownie wtedy)
+przyjrzeć się tym pojedynczym rzeczownikom
+
+### Przygotowanie danych
+
+(...) opisać jak przerabialiśmy dane, czyściliśmy je
+
+```{r,warning=F, message=F}
+library(stringi)
+library(tm)
+setwd("C:/Users/E540/Desktop/SMAD/R i Big Data/Projekt2/")
+source("usuwanie_stopwordsow.R", encoding = "UTF-8")
+source("ranking_slowa.R",encoding = "UTF-8")
+source("zamiana_czasownikow.R",encoding = "UTF-8")
+source("wordcloud_plot.R",encoding = "UTF-8")
+
+dane <- read.csv("C:/Users/E540/Desktop/SMAD/R i Big Data/Projekt2/dane_ost.csv", header = T, stringsAsFactors = F,
+                 encoding = "UTF-8")
+
+
+dane$rzeczowniki <- usuwanie_stopwordsow(dane$rzeczowniki)
+dane$rzeczowniki <- zamiana_czasownikow(dane$rzeczowniki)
+
+ranking <- ranking_slowa(dane$rzeczowniki)
+ranking <- ranking[ranking$word != "",]
+```
+
+W wyniku powyższych działań otrzymaliśmy zbiór danych danych postaci:
+```{r}
+kable(dane[2:6,])
+```
+
+## PUNKT WIDZENIA - RZECZOWNIKI (TODO ZAMIENIĆ POTEM NA SPÓJNIEJSZY OPIS ŁĄCZNY)
+
+Spójrzmy na podstawowe statystyki dotyczące rzeczowników w badanych tekstach.  W naszych danych udało nam się wyodrębnić łącznie **114 497** rzeczowników, w tym **10 825** różnych (co stanowi **9.5%** całej liczby). Patrząc na rozkład ilości wystąpień rzeczowników, widzimy bardzo mocną prawostronną skośność (górny kwantyl poniżej 5, przy maksimum równym **2609**). Wynika ona z faktu, że w zbiorze znajduje się bardzo dużo rzeczowników, które pojawiły się tylko jednokrotnie.
+
+```{r,message=F, warning=F}
+rzeczowniki_lista <- strsplit(unlist(dane$rzeczowniki), split = "|", fixed = T)
+rzeczowniki <- unlist(rzeczowniki_lista)
+rzeczowniki <- rzeczowniki[rzeczowniki != ""]
+ilosc_rzeczownikow <- length(rzeczowniki)
+rzeczowniki_unique <- unique(rzeczowniki)
+ilosc_rzeczownikow_unik <- length(rzeczowniki_unique)
+
+#ilosc_rzeczownikow_unik/ilosc_rzeczownikow*100
+
+n <- nrow(dane)
+
+srednio <- ilosc_rzeczownikow/n
+
+
+korpus <- Corpus(VectorSource(rzeczowniki_lista))
+korpus <- DocumentTermMatrix(korpus, control = list(wordLengths = c(1,Inf))) 
+korpus_mac <- as.matrix(korpus)
+
+# ze względu na posty podzial
+ile_rzecz_w_dok <- rowSums(korpus_mac)
+ile_rzecz_w_dok <- sort(ile_rzecz_w_dok, decreasing=TRUE)
+
+# ze względu na rzeczowniki podział
+rank <- colSums(korpus_mac)
+rank <- sort(rank, decreasing=TRUE)
+
+# ile unikalnych rzeczowników w postach
+ile_unik <- lapply(rzeczowniki_lista, function(x){
+   length(unique(x))
+})
+
+ile_unik <- unlist(ile_unik)
+#ile_unik[1:10]
+#ile_rzecz_w_dok[1:10]
+
+
+ile_unik_ktore <- rzeczowniki[ile_unik != ile_rzecz_w_dok]
+
+
+#sprawdzić czy gdzieś występuje wiecej razy jakis rzeczownik niż raz tak
+# wiem gdzie, teraz jak tą wiedzę wykorzystac, tj, by wiedzieć w ilu dokumnetach wystąpiło słowo
+
+#slowa_w_ilu_dok_proc[1:10] # w ilu procentach dokumentów to popularne slowo wystąpiło
+#ranking[1:10, "procent"]
+
+#sum((names(ranking[, "procent"]) == names(slowa_w_ilu_dok_proc))[1:100])
+# nie jest to pełna zgodność choć bardzo podobne
+
+#sum(names(ranking[, "procent"]) == names(slowa_w_ilu_dok_proc))
+
+```
+
+
+
+```{r}
+library(ggplot2)
+library(ggthemes)
+
+
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL, titlesize = 12, title="") {
+   library(grid)
+   
+   # Make a list from the ... arguments and plotlist
+   plots <- c(list(...), plotlist)
+   
+   numPlots = length(plots)
+   
+   # If layout is NULL, then use 'cols' to determine layout
+   if (is.null(layout)) {
+      # Make the panel
+      # ncol: Number of columns of plots
+      # nrow: Number of rows needed, calculated from # of cols
+      layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                       ncol = cols, nrow = ceiling(numPlots/cols))
+   }
+   
+   if (numPlots==1) {
+      print(plots[[1]])
+      
+   } else {
+      # Set up the page
+      grid.newpage()
+      pushViewport(viewport(layout = grid.layout(nrow(layout)+1, ncol(layout), heights = unit(c(0.7, 4), "null"))))
+      grid.text(title, 
+                vp = viewport(layout.pos.row = 1, layout.pos.col = 1:2),
+                gp = gpar(fontsize = titlesize))
+      # Make each plot, in the correct location
+      for (i in 1:numPlots) {
+         # Get the i,j matrix positions of the regions that contain this subplot
+         matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+         print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row+1,
+                                         layout.pos.col = matchidx$col))
+      }
+   }
+}
+
+
+korpus <- Corpus(VectorSource(rzeczowniki_lista))
+korpus <- DocumentTermMatrix(korpus, control = list(wordLengths = c(1,Inf))) 
+korpus_mac <- as.matrix(korpus)
+
+# ze względu na posty podzial
+ile_rzecz_w_dok <- rowSums(korpus_mac)
+ile_rzecz_w_dok <- sort(ile_rzecz_w_dok, decreasing=TRUE)
+
+# ze względu na rzeczowniki podział
+rank <- colSums(korpus_mac)
+rank <- sort(rank, decreasing=TRUE)
+
+rysujRozklady <- function(wektor, tytulgl="", tytulboxp="", tytulhist="", max_hist_x, krok=10){
+   
+   require(ggplot2)
+   
+   staty <- summary(wektor)
+   
+   DF <- data.frame(x=factor(c(""),
+                                  levels= c("")), 
+                         min=staty[1], low=staty[2], mid=staty[3], top=staty[5], 
+                         max=staty[6])
+   
+   p_d <- ggplot(DF, aes(x=x, ymin = min, lower = low, middle = mid, upper = top, ymax = max)) +
+      geom_boxplot(stat = "identity", colour="#556270",fill="#4ECDC4") + ggtitle(tytulboxp) +
+      xlab("") + ylab("Ilość rzeczowników")+ coord_cartesian(ylim = c(0, staty[5] + 10)) +
+      theme(axis.ticks=element_blank(), axis.text=element_text(size=12), axis.title = element_text(size=14))
+     
+   y_r <- ggplot_build(p_d)$panel$ranges[[1]]$y.minor_source
+   y_r <- y_r[length(y_r)]
+   x_r <- ggplot_build(p_d)$panel$ranges[[1]]$x.major_source
+   x_r <- x_r[length(x_r)]
+ 
+  p_d <- p_d +  annotate("text", label = paste0("I kwartyl: ", staty[2]), x = 0.7*x_r, y =y_r, size = 4, colour = "black")+
+      annotate("text", label = paste0("III kwartyl: ", staty[5]), x = 0.7*x_r, y =0.9*y_r, size = 4, colour = "black")
+ 
+   
+   DF <- as.data.frame(wektor)
+   
+ p_d1 <- ggplot(data=DF, aes(DF$wektor)) + 
+  geom_histogram(breaks=seq(0, staty[6], by = krok), 
+                 col="#DB0A5B", 
+                 fill="#EBC2C2") + 
+  labs(title=tytulhist)+
+      theme(axis.ticks=element_blank(), axis.text=element_text(size=12), axis.title = element_text(size=14))+
+    xlab("") +  ylab("Liczność") + coord_cartesian(xlim = c(0, max_hist_x))
+ 
+ y_r <- ggplot_build(p_d1)$panel$ranges[[1]]$y.minor_source
+ y_r <- y_r[length(y_r)]
+ 
+ p_d1 <- p_d1 +  annotate("text", label = paste0("max: ", staty[6]), x = 0.7*max_hist_x, y =y_r, size = 4, colour = "black")+
+      annotate("text", label = paste0("mediana: ", staty[3]), x = 0.7*max_hist_x, y =0.9*y_r, size = 4, colour = "black")+
+      annotate("text", label = paste0("średnia: ", staty[4]), x = 0.7*max_hist_x, y =0.8*y_r , size = 4, colour = "black")
+ 
+ multiplot(p_d1,p_d, cols=2, title=tytulgl)
+}
+
+rysujRozklady(rank, tytulgl = "Rozkład ilości wystąpień rzeczowników" ,max_hist_x = 100)
+```
+
+Spójrzmy na tabelę rozkładu ilości wystąpień. Widać z niej, że ponad połowa rzeczowników wystąpiła zaledwie raz. 
+```{r}
+labelki <- c("1 raz", "2-5", "6-10", "11-50", "51-100", "101-1000", "1001-2609" )
+licznosci <- cut(rank ,breaks =c(0,1,5,10,50,100,1000,max(rank)+1), 
+                 labels = labelki )
+df <- t(as.data.frame(labelki))
+colnames(df) <- labelki
+rownames(df) <- NULL
+df[1,] <- as.character(table(licznosci))
+df <- rbind(df, paste0(as.character(round(table(licznosci)/length(rank)*100,2)),"%"))
+kable(df)
+```
+
+Jako, że najprawdopodobniej większość z tych pojedynczych rzeczowników nie będzie miała większego znaczenia w analizach (literówki, przypadkowe użycie etc.), przedstawmy rozkład ilości wystąpień rzeczowników, ale bez tych pojedynczych wystąpień. Widać teraz, że górny kwantyl wzrósł o ponad połowę i wynosi teraz 11,a mediana 4. Zatem jeśli dane słowo się powtarzało przynajmniej raz, to  połowa takich słów miała liczbę wystąpień większą lub równą 4.
+
+```{r}
+rysujRozklady(rank[rank != 1], tytulgl = "Rozkład ilości wystąpień rzeczowników (bez pojedynczych)", max_hist_x = 100 )
+```
+
+Zobaczmy graficznie jak przedstawiają się najpopularniejsze słowa.
+
+```{r, warning=F,message=F}
+
+ranking1 <- ranking
+#ranking1$word <- stri_replace_all_fixed(ranking1$word, pattern = "_", replacement = " ")
+wordcloud_plot(slowa = ranking1$word, licznosci = ranking1$count, ile_slow = 50, kolory_wg_liczn = F, od_srodka = F,
+               tytul = "Wordcloud dla 50 najczęstszych słów")
+
+```
+
+Przedstawmy ranking 20 najpopularniejszych słów wraz z ich statystykami. Jak widać najczęstszym słowem jest oczywiście **bank** z liczbą wystąpień równą **2609**. To słowo występowało w **17%** postów. Poza tym na tej liście można znaleźć typowe słowa związane z branżą bankową, jak: klient, konto czy rachunek. Warto zwrócić uwagę, że wśród tych najczęstszych słów znajdują się dwa imiona - Magda i Kuba. Wynika to z faktu, że na posty użytkowników w imieniu banku odpowiadały osoby o tych imionach, które zawsze pod koniec posta umieszczały swoje imię. 
+```{r, warning=F,message=F}
+library(knitr)
+
+#unikalne rzeczowniki dla każdego postu
+jakie_unik <- lapply(rzeczowniki_lista, function(x){
+   u <- unique(x)[unique(x)!=""]
+})
+
+#ranking wg liczby unikalnych slowo
+slowa_w_ilu_dok <- sort(table(unlist(jakie_unik)),  decreasing = T)
+slowa_w_ilu_dok_proc <- slowa_w_ilu_dok/length(dane$rzeczowniki)*100
+tab <- data.frame(word = names(slowa_w_ilu_dok_proc), procent_dok = slowa_w_ilu_dok_proc, rank_dok = 1:length(slowa_w_ilu_dok))
+colnames(tab)[colnames(tab) == "procent_dok"] <- "procent per post"
+colnames(tab)[colnames(tab) == "rank_dok"] <- "rank per post"
+tabelka <- merge(ranking,tab, by = "word")
+tabelka$rank <- as.numeric(tabelka$rank)
+tabelka <- tabelka[order(tabelka$rank),]
+tabelka$procent <- round(tabelka$procent,2)
+tabelka$`procent per post` <- round(tabelka$`procent per post`,2)
+rownames(tabelka) <- NULL
+kable(head(tabelka[,c(1,3,6,2,4,5)],20))
+
+```
+
+W tabeli umieściliśmy 2 liczby procentowe i 2 rankingi. Pierwszy ranking i procenty odnoszą się do łącznej liczby wystąpień, natomiast drugie do łącznej liczby dokumentów. Jak widać te rankingi pokrywają się dla tych 20 najpopularniejszych słów (w większości rankingi te się pokrywają lub różnią o zaledwie parę pozycji). Słowa, dla których te rankingi różnią się o więcej niz 5 wylistowaliśmy poniżej. Jest ich 14 i są to tylko rzeczowniki odczasownikowe. Występowały one częściej per post niż w łącznej sumie rzeczowników. (W SUMIE TO ZBĘDNA WIEDZA, usunąć może)
+
+```{r}
+
+tabeleczka <- tabelka
+tabeleczka$rozn <- abs(tabelka$rank - tabelka$`rank per post`)
+ktore <- tabeleczka$rozn > 5
+tabeleczka1 <- tabeleczka[ktore,]
+tabeleczka1 <- tabeleczka1[order(tabeleczka1$rozn, decreasing = T),]
+rownames(tabeleczka1) <- NULL
+kable(tabeleczka1[,])
+```
+
+Spójrzmy na rozkład wybranych popularnych słów w czasie: (TODO zrobić dekompozycję szeregów czasowych, znaleźć piki, określić czy są stacjonarne czy nie, trend, sezonowość,  Michał robi to?)
+
+```{r}
+czasy <- dane$created_at
+czasy <- as.POSIXct(czasy)
+minik <- as.character(min(czasy))
+maxik <- as.character(max(czasy))
+ile <- table(czasy)
+
+wystapienia_banku <- korpus_mac[,"bank"]
+razem <- data.frame( czas = czasy, wystapienia = wystapienia_banku)
+library(xts)
+razem.xts <- xts(razem$wystapienia,as.POSIXct(razem$czas))
+
+ends <- endpoints(razem.xts,on='weeks') 
+skumulowane <- period.apply(razem.xts,ends ,sum)
+
+plot.xts(skumulowane, main = "bank (per week)", auto.grid = F, type="l")
+lines(skumulowane, col = "blue")
+
+# inne slowo
+wystapienia_banku <- korpus_mac[,"problem"]
+razem <- data.frame( czas = czasy, wystapienia = wystapienia_banku)
+library(xts)
+razem.xts <- xts(razem$wystapienia,as.POSIXct(razem$czas))
+
+ends <- endpoints(razem.xts,on='weeks') 
+skumulowane <- period.apply(razem.xts,ends ,sum)
+#acf(skumulowane, lag.max = 100)
+plot.xts(skumulowane, main = "problem (per week)", auto.grid = F, type="l")
+lines(skumulowane, col = "blue")
+
+```
+
+
+
+
+Przyjrzyjmy się teraz rozkładowi rzeczowników w postach. W zbiorze danych mamy **15 594** posty, a na post przypada średnio **7.34** rzeczownika. Ten rozkład jak można było się spodziewać jest również prawostronnie skośny.
+
+```{r}
+rysujRozklady(ile_rzecz_w_dok, tytulgl = "Rozkład ilości rzeczowników w postach", max_hist_x = 100)
+```
+
+Maksymalna ilość rzeczowników w jednym poście wynosiła **156**. Przyjrzyjmy się temu postowi.
+
+```{r}
+library(knitr)
+dane1 <- dane[as.numeric(names(ile_rzecz_w_dok[ile_rzecz_w_dok == max(ile_rzecz_w_dok)])),]
+tytul <- paste0("Post użytkownika: ",dane1$user_name, " z dnia: ", dane1$created_at, " (", 
+             weekdays(as.Date(dane1$created_at)), ")" )
+df <- data.frame(je = dane1[, c("body")])
+colnames(df) <- tytul
+kable(df)
+
+```
+
+
+
+## Asocjacje
+
+```{r}
+
+
+# 
+# alibrary(Rgraphviz)
+# library(graph)
+# frekw_slowa2 <- findFreqTerms(tdm_oscary, lowfreq = 2)
+# plot(tdm_oscary,term =frekw_slowa2, corThreshold= 0.15,  weighting=T, 
+#  attrs=list(node=list(fontsize=15, shape="ellipse", fixedsize=FALSE)))
+# plot()
+
+
+
+plot_asocjacje <- function(a,czyStrzalki = F,
+                            kolLinii = "blue", 
+                            szerLinii = 4, 
+                            krzywLinii = 0.1, 
+                            rozmiarStrzalek = 0.5,
+                            szerStrzalek = 1, 
+                            typLinii = "solid",
+                            etykLinii = "", 
+                            etykLiniiRozmiar = 3,
+                            ksztaltVertexa ="none", 
+                           ileSlow =10){
+   require(igraph)
+   
+   
+   
+   data <- data.frame(slowa = names(a[[1]]), rep(names(a), length(names(a[[1]]))), cor = a[[1]])
+
+   alpha <- data$cor
+   #tworze strukture grafu
+   g <- graph.data.frame(data[1:10,], directed=czyStrzalki)
+   
+   #definiuje sobie jak maja rysowane byc linie (edges)
+   alpha <-(alpha/max(alpha))
+   doRGB <- as.numeric(col2rgb(kolLinii))/255
+   E(g)$color <- rgb(doRGB[1],doRGB[2],doRGB[3],alpha=alpha)
+   E(g)$width <- szerLinii
+
+   
+   plot(g,  
+        edge.curved=krzywLinii, 
+        edge.arrow.size = rozmiarStrzalek,
+        edge.arrow.width = szerStrzalek, 
+        edge.lty = typLinii, 
+        edge.label= etykLinii, 
+        edge.label.cex = etykLiniiRozmiar,
+        vertex.shape=ksztaltVertexa, #vertex.size=20, vertex.size2=8, 
+        vertex.color= "green")
+        
+}
+
+wektor <- stri_replace_all_fixed(dane$rzeczowniki, pattern="|", replacement = " ")
+korpus <- Corpus(VectorSource(wektor))
+
+korpus <- tm_map(korpus, PlainTextDocument)
+tdm_oscary <- TermDocumentMatrix(korpus)
+
+a <- findAssocs(tdm_oscary, "problem", corlimit = 0.07)
+
+plot_asocjacje(a)
+
+a <- findAssocs(tdm_oscary, "kpina", corlimit = 0.12)
+plot_asocjacje(a)
+
+tdm_oscary2 <- removeSparseTerms(tdm_oscary, sparse = 0.95) # usuwa rzadkie, rozproszone słowa
+tdm_oscary2_m <- as.matrix(tdm_oscary2)
+dist_matrix <- dist(scale(tdm_oscary2_m))
+fit <- hclust(dist_matrix, method="ward")
+#plot(fit)
+library(sparcl)
+library(stats)
+y = cutree(fit, 3)
+ColorDendrogram(fit, y, main = "Dendogram dla naszych danych", 
+                branchlength = 50, labels = names(y), xlab = "", sub = "")
+
+
+
+```
+
+
+
+## PUNKT WIDZENIA - GRUPY NADAWCÓW
+
+## PUNKT WIDZENIA - WĄTKI
+
+## PUNKT WIDZENIA - CZASY
+
+
+
