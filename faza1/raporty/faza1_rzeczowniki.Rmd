@@ -8,21 +8,19 @@ output: html_document
 ```{r setup, cache=FALSE, include=FALSE}
 library(knitr)
 opts_chunk$set(echo = F, cache = F, warning = F, message = F)
+# <style>
+# .main-container { width: 1200px; max-width:100%;}
+# </style>
 ```
-TODO
--pakiet
--prezentacja?
--slownik bledow
--poprawić w rankingu by alior bank rozbic na alior i bank, bo i tak są liczone osobno (zmienić liczby w markdownie wtedy)
-przyjrzeć się tym pojedynczym rzeczownikom
-
 ### Przygotowanie danych
 
-(...) opisać jak przerabialiśmy dane, czyściliśmy je
+Nasze dane dotyczyły postów ze strony fanpage'a AliorBanku na facebooku. Przed przystąpieniem do analiz przepuściliśmy teksty postów przez korektę językową, po czym wybraliśmy z nich słowa zakwalifikowane jako rzeczowniki i wzięliśmy ich formę podstawową. Otrzymany wynik nie do końca nas satysfakcjonował dlatego usunęliśmy z otrzymanych rzeczowników tzw. stopwordsy, a rzeczowniki odczasownikowe, których formą podstawową jest czasownik i jako czasownik były zwracane przez aplikację, zamieniliśmy z powrotem na rzeczowniki. Wyłuskane w ten sposób rzeczowniki zapisawaliśmy w formie wyraz1|wyraz2|... do nowej kolumny. W wyniku tych działań otrzymaliśmy zbiór danych danych postaci:
 
 ```{r,warning=F, message=F}
+
+#wstawic te funkcje i jak to robiliśmy, to samo fukncje usuwanie_stopowordsów itd
+
 library(stringi)
-library(tm)
 setwd("C:/Users/E540/Desktop/SMAD/R i Big Data/Projekt2/")
 source("usuwanie_stopwordsow.R", encoding = "UTF-8")
 source("ranking_slowa.R",encoding = "UTF-8")
@@ -36,23 +34,25 @@ dane <- read.csv("C:/Users/E540/Desktop/SMAD/R i Big Data/Projekt2/dane_ost.csv"
 dane$rzeczowniki <- usuwanie_stopwordsow(dane$rzeczowniki)
 dane$rzeczowniki <- zamiana_czasownikow(dane$rzeczowniki)
 
-ranking <- ranking_slowa(dane$rzeczowniki)
-ranking <- ranking[ranking$word != "",]
 ```
 
-W wyniku powyższych działań otrzymaliśmy zbiór danych danych postaci:
+
 ```{r}
-kable(dane[2:6,])
+kable(dane[2:3,-c(1)])
 ```
 
-## PUNKT WIDZENIA - RZECZOWNIKI (TODO ZAMIENIĆ POTEM NA SPÓJNIEJSZY OPIS ŁĄCZNY)
+## PUNKT WIDZENIA - RZECZOWNIKI
+
+### Statystyki dla rzeczowników
 
 Spójrzmy na podstawowe statystyki dotyczące rzeczowników w badanych tekstach.  W naszych danych udało nam się wyodrębnić łącznie **114 497** rzeczowników, w tym **10 825** różnych (co stanowi **9.5%** całej liczby). Patrząc na rozkład ilości wystąpień rzeczowników, widzimy bardzo mocną prawostronną skośność (górny kwantyl poniżej 5, przy maksimum równym **2609**). Wynika ona z faktu, że w zbiorze znajduje się bardzo dużo rzeczowników, które pojawiły się tylko jednokrotnie.
 
 ```{r,message=F, warning=F}
+library(tm)
 rzeczowniki_lista <- strsplit(unlist(dane$rzeczowniki), split = "|", fixed = T)
 rzeczowniki <- unlist(rzeczowniki_lista)
 rzeczowniki <- rzeczowniki[rzeczowniki != ""]
+
 ilosc_rzeczownikow <- length(rzeczowniki)
 rzeczowniki_unique <- unique(rzeczowniki)
 ilosc_rzeczownikow_unik <- length(rzeczowniki_unique)
@@ -62,7 +62,6 @@ ilosc_rzeczownikow_unik <- length(rzeczowniki_unique)
 n <- nrow(dane)
 
 srednio <- ilosc_rzeczownikow/n
-
 
 korpus <- Corpus(VectorSource(rzeczowniki_lista))
 korpus <- DocumentTermMatrix(korpus, control = list(wordLengths = c(1,Inf))) 
@@ -76,6 +75,7 @@ ile_rzecz_w_dok <- sort(ile_rzecz_w_dok, decreasing=TRUE)
 rank <- colSums(korpus_mac)
 rank <- sort(rank, decreasing=TRUE)
 
+
 # ile unikalnych rzeczowników w postach
 ile_unik <- lapply(rzeczowniki_lista, function(x){
    length(unique(x))
@@ -87,18 +87,6 @@ ile_unik <- unlist(ile_unik)
 
 
 ile_unik_ktore <- rzeczowniki[ile_unik != ile_rzecz_w_dok]
-
-
-#sprawdzić czy gdzieś występuje wiecej razy jakis rzeczownik niż raz tak
-# wiem gdzie, teraz jak tą wiedzę wykorzystac, tj, by wiedzieć w ilu dokumnetach wystąpiło słowo
-
-#slowa_w_ilu_dok_proc[1:10] # w ilu procentach dokumentów to popularne slowo wystąpiło
-#ranking[1:10, "procent"]
-
-#sum((names(ranking[, "procent"]) == names(slowa_w_ilu_dok_proc))[1:100])
-# nie jest to pełna zgodność choć bardzo podobne
-
-#sum(names(ranking[, "procent"]) == names(slowa_w_ilu_dok_proc))
 
 ```
 
@@ -146,18 +134,6 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL, titlesize =
    }
 }
 
-
-korpus <- Corpus(VectorSource(rzeczowniki_lista))
-korpus <- DocumentTermMatrix(korpus, control = list(wordLengths = c(1,Inf))) 
-korpus_mac <- as.matrix(korpus)
-
-# ze względu na posty podzial
-ile_rzecz_w_dok <- rowSums(korpus_mac)
-ile_rzecz_w_dok <- sort(ile_rzecz_w_dok, decreasing=TRUE)
-
-# ze względu na rzeczowniki podział
-rank <- colSums(korpus_mac)
-rank <- sort(rank, decreasing=TRUE)
 
 rysujRozklady <- function(wektor, tytulgl="", tytulboxp="", tytulhist="", max_hist_x, krok=10){
    
@@ -226,18 +202,20 @@ Jako, że najprawdopodobniej większość z tych pojedynczych rzeczowników nie 
 rysujRozklady(rank[rank != 1], tytulgl = "Rozkład ilości wystąpień rzeczowników (bez pojedynczych)", max_hist_x = 100 )
 ```
 
-Zobaczmy graficznie jak przedstawiają się najpopularniejsze słowa.
+### Najpopularniejsze słowa
+
+Zobaczmy graficznie jak przedstawiają się najpopularniejsze słowa. Widać, że większość słów jest związana z branżą bankową, tj. klient, konto, rachunek czy przelew. . Warto zwrócić uwagę, że wśród tych najczęstszych słów znajdują się dwa imiona - Magda i Kuba. Wynika to z faktu, że na posty użytkowników w imieniu banku odpowiadały osoby o tych imionach, które zawsze pod koniec posta umieszczały swoje imię. 
 
 ```{r, warning=F,message=F}
-
-ranking1 <- ranking
+ranking <- ranking_slowa(dane$rzeczowniki)
+ranking <- ranking[ranking$word != "",]
 #ranking1$word <- stri_replace_all_fixed(ranking1$word, pattern = "_", replacement = " ")
-wordcloud_plot(slowa = ranking1$word, licznosci = ranking1$count, ile_slow = 50, kolory_wg_liczn = F, od_srodka = F,
+wordcloud_plot(slowa = ranking$word, licznosci = ranking$count, ile_slow = 50, kolory_wg_liczn = F, od_srodka = F,
                tytul = "Wordcloud dla 50 najczęstszych słów")
 
 ```
 
-Przedstawmy ranking 20 najpopularniejszych słów wraz z ich statystykami. Jak widać najczęstszym słowem jest oczywiście **bank** z liczbą wystąpień równą **2609**. To słowo występowało w **17%** postów. Poza tym na tej liście można znaleźć typowe słowa związane z branżą bankową, jak: klient, konto czy rachunek. Warto zwrócić uwagę, że wśród tych najczęstszych słów znajdują się dwa imiona - Magda i Kuba. Wynika to z faktu, że na posty użytkowników w imieniu banku odpowiadały osoby o tych imionach, które zawsze pod koniec posta umieszczały swoje imię. 
+Przedstawmy ranking 10 najpopularniejszych słów wraz z ich statystykami. Jak widać najczęstszym słowem jest oczywiście **bank** z liczbą wystąpień równą **2609**. To słowo występowało w **17%** postów. Kolejnym słowem jest wspomniana Magda (**15%** postów), konto, klient, itd.
 ```{r, warning=F,message=F}
 library(knitr)
 
@@ -258,171 +236,208 @@ tabelka <- tabelka[order(tabelka$rank),]
 tabelka$procent <- round(tabelka$procent,2)
 tabelka$`procent per post` <- round(tabelka$`procent per post`,2)
 rownames(tabelka) <- NULL
-kable(head(tabelka[,c(1,3,6,2,4,5)],20))
+kable(head(tabelka[,c(1,3,6,2,4,5)],10))
 
 ```
 
-W tabeli umieściliśmy 2 liczby procentowe i 2 rankingi. Pierwszy ranking i procenty odnoszą się do łącznej liczby wystąpień, natomiast drugie do łącznej liczby dokumentów. Jak widać te rankingi pokrywają się dla tych 20 najpopularniejszych słów (w większości rankingi te się pokrywają lub różnią o zaledwie parę pozycji). Słowa, dla których te rankingi różnią się o więcej niz 5 wylistowaliśmy poniżej. Jest ich 14 i są to tylko rzeczowniki odczasownikowe. Występowały one częściej per post niż w łącznej sumie rzeczowników. (W SUMIE TO ZBĘDNA WIEDZA, usunąć może)
+W tabeli umieściliśmy 2 liczby procentowe i 2 rankingi. Pierwszy ranking i procenty odnoszą się do łącznej liczby wystąpień, natomiast drugie do łącznej liczby dokumentów. Jak widać te rankingi pokrywają się dla tych 10 najpopularniejszych słów. W większości przypadków rankingi te pokrywają się lub różnią o zaledwie parę pozycji. Słowa, dla których te rankingi różnią się o więcej niz 5 wylistowaliśmy poniżej. Jest ich 14 i są to tylko rzeczowniki odczasownikowe. Występowały one częściej per post niż w łącznej sumie rzeczowników. Zwróćmy uwagę, że dla każdego z tych słów ranga w rankingu wg występowania jest wyższa (jest wyżej w rankingu) niż ranga z rankingu per post. Zatem jeśli te słowo wystąpiło to raczej w jednym poście kilkukrotnie niż pojedynczo w wielu postach. 
 
 ```{r}
-
 tabeleczka <- tabelka
 tabeleczka$rozn <- abs(tabelka$rank - tabelka$`rank per post`)
 ktore <- tabeleczka$rozn > 5
 tabeleczka1 <- tabeleczka[ktore,]
 tabeleczka1 <- tabeleczka1[order(tabeleczka1$rozn, decreasing = T),]
 rownames(tabeleczka1) <- NULL
-kable(tabeleczka1[,])
+kable(tabeleczka1[,c(1,3,6,2,4,5,7)])
 ```
 
-Spójrzmy na rozkład wybranych popularnych słów w czasie: (TODO zrobić dekompozycję szeregów czasowych, znaleźć piki, określić czy są stacjonarne czy nie, trend, sezonowość,  Michał robi to?)
+Zobaczmy przykładowy post dla słowa "anulowanie":
+
+**--------------------------------------------------------------**
 
 ```{r}
-czasy <- dane$created_at
-czasy <- as.POSIXct(czasy)
-minik <- as.character(min(czasy))
-maxik <- as.character(max(czasy))
-ile <- table(czasy)
-
-wystapienia_banku <- korpus_mac[,"bank"]
-razem <- data.frame( czas = czasy, wystapienia = wystapienia_banku)
-library(xts)
-razem.xts <- xts(razem$wystapienia,as.POSIXct(razem$czas))
-
-ends <- endpoints(razem.xts,on='weeks') 
-skumulowane <- period.apply(razem.xts,ends ,sum)
-
-plot.xts(skumulowane, main = "bank (per week)", auto.grid = F, type="l")
-lines(skumulowane, col = "blue")
-
-# inne slowo
-wystapienia_banku <- korpus_mac[,"problem"]
-razem <- data.frame( czas = czasy, wystapienia = wystapienia_banku)
-library(xts)
-razem.xts <- xts(razem$wystapienia,as.POSIXct(razem$czas))
-
-ends <- endpoints(razem.xts,on='weeks') 
-skumulowane <- period.apply(razem.xts,ends ,sum)
-#acf(skumulowane, lag.max = 100)
-plot.xts(skumulowane, main = "problem (per week)", auto.grid = F, type="l")
-lines(skumulowane, col = "blue")
-
+library(stringi)
+library(knitr)
+cooo <- stri_detect_fixed(dane$rzeczowniki, pattern = "anulowanie")
+dane111 <- dane[cooo,]
+df <-data.frame(cos =dane[10973,"body"])
+#kable(df, col.names = "")
 ```
 
 
+"Skontaktowałam się z Waszą infolinią, i co? I nic. Nadal wniosek wisi w powietrzu, nie ma go komu anulować, mija już 5 dzień a ja chciałam założyć w Waszym banku konto firmowe, chyba popełniłabym największy błąd w życiu bo jak miałaby  działać tak samo obsługa mojego konta jak **anulowanie** wniosku, to ja bardzo podziękuje. Dzięki temu, że wniosek nadal jest aktywny wstrzymaliście mi możliwość zaciągnięcie np. pożyczki w innym banku. Jest to nie dopuszczalne, od 5 dni czekam na **anulowanie** wniosku, Wasz \"bank\" jest po prostu zły!  Jak można tyle czekać na **anulowanie**? **Anulowanie** własnego wniosku, Wam jak raty nie zapłacę w terminie to mało głowy człowiekowi nie urwiecie! Straszycie, szantażujecie etc. Dość tego, mam prawo napisać na Was skargę. I zrobię to."
 
 
-Przyjrzyjmy się teraz rozkładowi rzeczowników w postach. W zbiorze danych mamy **15 594** posty, a na post przypada średnio **7.34** rzeczownika. Ten rozkład jak można było się spodziewać jest również prawostronnie skośny.
+**-------------------------------------------------------------**
+
+Czyli rzeczywiście dane potwierdzają powyższy wniosek. W przytoczonym przykładzie klient chce anulować wniosek i aby opisać swoją prośbę/problem wprost kilkukrotnie używa słowa "anulowanie".
+
+### Statystyki dla postów
+
+Przyjrzyjmy się teraz rozkładowi rzeczowników w postach. W zbiorze danych mamy **15 594** posty, a na post przypada średnio **7.34** rzeczownika. Ten rozkład jak można było się spodziewać jest również prawostronnie skośny, mamy dużo postów z małą ilością rzeczowników
 
 ```{r}
 rysujRozklady(ile_rzecz_w_dok, tytulgl = "Rozkład ilości rzeczowników w postach", max_hist_x = 100)
 ```
 
-Maksymalna ilość rzeczowników w jednym poście wynosiła **156**. Przyjrzyjmy się temu postowi.
+Maksymalna ilość rzeczowników w jednym poście wynosiła **156**. Post o największej ilości rzeczowników dotyczył opisu sytuacji, która miała miejsce w banku, więc duża ilość rzeczowników wynikała po pierwsze z charakteru postu jako opisu, a po drugie z jego znacznej długości.
 
 ```{r}
-library(knitr)
-dane1 <- dane[as.numeric(names(ile_rzecz_w_dok[ile_rzecz_w_dok == max(ile_rzecz_w_dok)])),]
-tytul <- paste0("Post użytkownika: ",dane1$user_name, " z dnia: ", dane1$created_at, " (", 
-             weekdays(as.Date(dane1$created_at)), ")" )
-df <- data.frame(je = dane1[, c("body")])
-colnames(df) <- tytul
-kable(df)
+# library(knitr)
+# dane1 <- dane[as.numeric(names(ile_rzecz_w_dok[ile_rzecz_w_dok == max(ile_rzecz_w_dok)])),]
+# #tytul <- paste0("Post użytkownika: ",dane1$user_name, " z dnia: ", dane1$created_at, " (", 
+#  #            weekdays(as.Date(dane1$created_at)), ")" )
+# df <- data.frame(je = dane1[, c("body")])
+# #colnames(df) <- tytul
+# kable(df, col.names = "")
 
 ```
 
+### Rozkład wybranych słów w czasie
 
+Spójrzmy na rozkład wybranych popularnych słów w czasie. Nasze dane pochodzą z okresu od **20 czerwca 2013** roku do **28 lutego 2016** roku, czyli mamy dane z **984** dni. W celu wykrycia nietypowych sytuacji przeanalizowaliśmy wykresy ilości wystąpień charakterystycznych słów w czasie liczonym w tygodniach. Jako nietypową liczbę wystąpień danego słowa potraktowaliśmy liczbę większą od 3 odchyleń standardowych dla wystąpień danego słowa. Z tych nietypowych liczb wybieraliśmy tą maksymalną i dla niej przeglądaliśmy posty z danego tygodnia w celu sprawdzenia powodu tak nagłego wzrostu wystapień wybranego słowa. 
 
-## Asocjacje
+Zanalizowaliśmy wykres dla słowa "problem" i "awaria". Z wykresu dla "problemu" widać wyraźmy pik w okolicach początku 2014. 
 
 ```{r}
 
 
-# 
-# alibrary(Rgraphviz)
-# library(graph)
-# frekw_slowa2 <- findFreqTerms(tdm_oscary, lowfreq = 2)
-# plot(tdm_oscary,term =frekw_slowa2, corThreshold= 0.15,  weighting=T, 
-#  attrs=list(node=list(fontsize=15, shape="ellipse", fixedsize=FALSE)))
-# plot()
 
 
+# inne slowo
 
-plot_asocjacje <- function(a,czyStrzalki = F,
-                            kolLinii = "blue", 
-                            szerLinii = 4, 
-                            krzywLinii = 0.1, 
-                            rozmiarStrzalek = 0.5,
-                            szerStrzalek = 1, 
-                            typLinii = "solid",
-                            etykLinii = "", 
-                            etykLiniiRozmiar = 3,
-                            ksztaltVertexa ="none", 
-                           ileSlow =10){
-   require(igraph)
-   
-   
-   
-   data <- data.frame(slowa = names(a[[1]]), rep(names(a), length(names(a[[1]]))), cor = a[[1]])
 
-   alpha <- data$cor
-   #tworze strukture grafu
-   g <- graph.data.frame(data[1:10,], directed=czyStrzalki)
+wykres_ts <- function(slowo, data = dane, korpus=korpus_mac){
+   require(xts)
+   czasy <- data$created_at
+   czasy <- as.POSIXct(czasy)
+   ile <- table(czasy)
+   wystapienia1<- korpus[,slowo]
+   razem <- data.frame( czas = czasy, wystapienia = wystapienia1)
+   razem.xts <- xts(razem$wystapienia,as.POSIXct(razem$czas))
+   ends <- endpoints(razem.xts,on='weeks') 
+   skumulowane <- period.apply(razem.xts,ends,sum)
+   plot.xts(skumulowane, main = paste0("Wystąpienia słowa ",slowo," w czasie (per week)"), auto.grid = F, type="l")
+   lines(skumulowane, col = "blue")
+   which <- as.numeric(skumulowane) > sqrt(var(as.numeric(skumulowane)))*3 #IQR(skumulowane)*1.34  
+   daty <- skumulowane[which]
+   tydzien <- format(x=as.Date(as.character(index(daty))), format="%W"  )
+   rok <- format(x=as.Date(as.character(index(daty))), format="%Y"  )
+   kiedy <- lapply(as.list(1:length(rok)), function(i){
+      
+      czas <- format(czasy[format(czasy, "%W") == tydzien[i] & format(czasy, "%Y") == rok[i]], "%Y-%m-%d %H:%M:%S")
+      
+   })
    
-   #definiuje sobie jak maja rysowane byc linie (edges)
-   alpha <-(alpha/max(alpha))
-   doRGB <- as.numeric(col2rgb(kolLinii))/255
-   E(g)$color <- rgb(doRGB[1],doRGB[2],doRGB[3],alpha=alpha)
-   E(g)$width <- szerLinii
-
-   
-   plot(g,  
-        edge.curved=krzywLinii, 
-        edge.arrow.size = rozmiarStrzalek,
-        edge.arrow.width = szerStrzalek, 
-        edge.lty = typLinii, 
-        edge.label= etykLinii, 
-        edge.label.cex = etykLiniiRozmiar,
-        vertex.shape=ksztaltVertexa, #vertex.size=20, vertex.size2=8, 
-        vertex.color= "green")
-        
+   kiedy <- kiedy[order(as.numeric(daty), decreasing = T)] # zwraca w kolejnosci malejacej
 }
 
-wektor <- stri_replace_all_fixed(dane$rzeczowniki, pattern="|", replacement = " ")
-korpus <- Corpus(VectorSource(wektor))
 
-korpus <- tm_map(korpus, PlainTextDocument)
-tdm_oscary <- TermDocumentMatrix(korpus)
+daty1 <- wykres_ts("problem")
 
-a <- findAssocs(tdm_oscary, "problem", corlimit = 0.07)
+```
 
-plot_asocjacje(a)
-
-a <- findAssocs(tdm_oscary, "kpina", corlimit = 0.12)
-plot_asocjacje(a)
-
-tdm_oscary2 <- removeSparseTerms(tdm_oscary, sparse = 0.95) # usuwa rzadkie, rozproszone słowa
-tdm_oscary2_m <- as.matrix(tdm_oscary2)
-dist_matrix <- dist(scale(tdm_oscary2_m))
-fit <- hclust(dist_matrix, method="ward")
-#plot(fit)
-library(sparcl)
-library(stats)
-y = cutree(fit, 3)
-ColorDendrogram(fit, y, main = "Dendogram dla naszych danych", 
-                branchlength = 50, labels = names(y), xlab = "", sub = "")
-
+Przyjrzyjmy się typowemu postowi z tygodnia, który odpowiadał temu pikowi. Jak widać problem doryczył logowania się online na stronie internetowej banku.
+```{r}
+co <- dane[dane$created_at %in% daty1[[1]],]
+co <- co[stri_detect_fixed(co$rzeczowniki, pattern = "problem"), c("created_at","body")]
+co$body <-stri_replace_all_regex(co$body, pattern = "\\\n", replacement = " ")
+co$body <-stri_replace_all_fixed(co$body, pattern = "\"", replacement = " ")
+kable(co[1,], row.names = F)
 
 
 ```
 
+Podobnie zrobiliśmy dla słowa "awaria". Wyraźny skok był widoczny koło czerwca 2015. Z typowego postu dla tego tygodnia wynika, że awaria dotyczyła bankomatów.
+
+```{r}
+daty1 <- wykres_ts("awaria")
+co <- dane[dane$created_at %in% daty1[[1]],]
+co <- co[stri_detect_fixed(co$rzeczowniki, pattern = "awaria"), c("created_at","body")]
+co$body <-stri_replace_all_regex(co$body, pattern = "\\\n", replacement = " ")
+co$body <-stri_replace_all_fixed(co$body, pattern = "\"", replacement = " ")
+kable(co[15,], row.names = F)
+```
 
 
-## PUNKT WIDZENIA - GRUPY NADAWCÓW
+```{r}
+# 
+# ## Asocjacje słów
+# # 
+# # alibrary(Rgraphviz)
+# # library(graph)
+# # frekw_slowa2 <- findFreqTerms(tdm_oscary, lowfreq = 2)
+# # plot(tdm_oscary,term =frekw_slowa2, corThreshold= 0.15,  weighting=T, 
+# #  attrs=list(node=list(fontsize=15, shape="ellipse", fixedsize=FALSE)))
+# # plot()
+# 
+# 
+# 
+# plot_asocjacje <- function(a,czyStrzalki = F,
+#                             kolLinii = "blue", 
+#                             szerLinii = 4, 
+#                             krzywLinii = 0.1, 
+#                             rozmiarStrzalek = 0.5,
+#                             szerStrzalek = 1, 
+#                             typLinii = "solid",
+#                             etykLinii = "", 
+#                             etykLiniiRozmiar = 3,
+#                             ksztaltVertexa ="none", 
+#                            ileSlow =10){
+#    require(igraph)
+#    
+#    
+#    
+#    data <- data.frame(slowa = names(a[[1]]), rep(names(a), length(names(a[[1]]))), cor = a[[1]])
+# 
+#    alpha <- data$cor
+#    #tworze strukture grafu
+#    g <- graph.data.frame(data[1:10,], directed=czyStrzalki)
+#    
+#    #definiuje sobie jak maja rysowane byc linie (edges)
+#    alpha <-(alpha/max(alpha))
+#    doRGB <- as.numeric(col2rgb(kolLinii))/255
+#    E(g)$color <- rgb(doRGB[1],doRGB[2],doRGB[3],alpha=alpha)
+#    E(g)$width <- szerLinii
+# 
+#    
+#    plot(g,  
+#         edge.curved=krzywLinii, 
+#         edge.arrow.size = rozmiarStrzalek,
+#         edge.arrow.width = szerStrzalek, 
+#         edge.lty = typLinii, 
+#         edge.label= etykLinii, 
+#         edge.label.cex = etykLiniiRozmiar,
+#         vertex.shape=ksztaltVertexa, #vertex.size=20, vertex.size2=8, 
+#         vertex.color= "green")
+#         
+# }
+# 
+# wektor <- stri_replace_all_fixed(dane$rzeczowniki, pattern="|", replacement = " ")
+# korpus <- Corpus(VectorSource(wektor))
+# 
+# korpus <- tm_map(korpus, PlainTextDocument)
+# tdm_oscary <- TermDocumentMatrix(korpus)
+# 
+# a <- findAssocs(tdm_oscary, "problem", corlimit = 0.07)
+# 
+# plot_asocjacje(a)
+# 
+# a <- findAssocs(tdm_oscary, "kpina", corlimit = 0.12)
+# plot_asocjacje(a)
+# # 
+# # tdm_oscary2 <- removeSparseTerms(tdm_oscary, sparse = 0.95) # usuwa rzadkie, rozproszone słowa
+# # tdm_oscary2_m <- as.matrix(tdm_oscary2)
+# # dist_matrix <- dist(scale(tdm_oscary2_m))
+# # fit <- hclust(dist_matrix, method="ward")
+# # #plot(fit)
+# # library(sparcl)
+# # library(stats)
+# # y = cutree(fit, 3)
+# # ColorDendrogram(fit, y, main = "Dendogram dla naszych danych", 
+# #                 branchlength = 50, labels = names(y), xlab = "", sub = "")
+# 
+# 
 
-## PUNKT WIDZENIA - WĄTKI
-
-## PUNKT WIDZENIA - CZASY
-
-
-
+```
