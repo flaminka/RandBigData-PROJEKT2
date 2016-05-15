@@ -14,11 +14,11 @@ source("wybor_zdarzen.R")
 
 dane <- read.csv("dane_rzecz.csv", header = TRUE)
 dane=dane%>%filter(!rzeczownik %in% c("magda", "kuba","justyna", "julian", "mariusz", "alior", "bank","alior_bank"))
-dni=7 #wielkoúÊ okresÛw z kÛrych bierzemy najczÍúciej wystÍpujπce s≥owo (w dniach)
+dni=7 #wielko≈õƒá okres√≥w z k√≥rych bierzemy najczƒô≈õciej wystƒôpujƒÖce s≈Çowo (w dniach)
 ```
 
 
-Aby znaleüÊ nietypowe zdarzenia, ktÛre mia≥y miejsce w czasie, z ktÛrego posiadamy dane, przeanalizowaliúmy najczÍúciej wystÍpujπce s≥owa na przestrzeni tygodnia. Analiza odby≥a siÍ metodπ ruchomego okna. Aby s≥owa czÍsto powtarzajπce siÍ w konwersacji nie zas≥oni≥y jej treúci, z analizowanych s≥Ûw zosta≥y usuniÍte **imona pracownikÛw banku** odpowiadajπcych na maile oraz s≥owa: **bank**, **alior**,**alior_bank**. Poniøej zosta≥ przedstawiony wykres njczÍúciej wystÍpujπcych s≥Ûw w poszczegÛlnych okresach.
+Aby znale≈∫ƒá nietypowe zdarzenia, kt√≥re mia≈Çy miejsce w czasie, z kt√≥rego posiadamy dane, przeanalizowali≈õmy najczƒô≈õciej wystƒôpujƒÖce s≈Çowa na przestrzeni tygodnia. Analiza odby≈Ça siƒô metodƒÖ ruchomego okna. Aby s≈Çowa czƒôsto powtarzajƒÖce siƒô w konwersacji nie zas≈Çoni≈Çy jej tre≈õci, z analizowanych s≈Ç√≥w zosta≈Çy usuniƒôte **imona pracownik√≥w banku** odpowiadajƒÖcych na maile oraz s≈Çowa: **bank**, **alior**,**alior_bank**. Poni≈ºej zosta≈Ç przedstawiony wykres njczƒô≈õciej wystƒôpujƒÖcych s≈Ç√≥w w poszczeg√≥lnych okresach.
 
 ```{r, echo = FALSE, message=FALSE, fig.align='center'}
 mostf=theMostFrequently(dni, dane)
@@ -31,11 +31,11 @@ mostf %>%
   scale_fill_manual(values = getPalette(colourCount)) +
   theme(legend.position="bottom") +
   xlab("Data") +
-  ylab("Liczba postÛw z tym s≥owem") +
-  ggtitle("Maksymalne licznoúci s≥Ûw w danym przedziale czasu")
+  ylab("Liczba post√≥w z tym s≈Çowem") +
+  ggtitle("Maksymalne liczno≈õci s≈Ç√≥w w danym przedziale czasu")
 ```
 
-NastÍpnie odfiltrowaliúmy dane dla tych s≥Ûw, ktÛre majπ udzia≥ w najczÍúciej pojawiajπcych siÍ s≥owach nie wiÍkszy niø 2%. Podejrzewamy, øe dla tych s≥Ûw podczas tych wystπpieÒ w postach kiedy pojawia≥y siÍ czÍúciej niø inne zachoadzi≥y ciekawe i niecodzienne wydarzenia. Oto wykres tylko dla wyselekcjonowanych s≥Ûw.
+Nastƒôpnie odfiltrowali≈õmy dane dla tych s≈Ç√≥w, kt√≥re majƒÖ udzia≈Ç w najczƒô≈õciej pojawiajƒÖcych siƒô s≈Çowach nie wiƒôkszy ni≈º 2%. Podejrzewamy, ≈ºe dla tych s≈Ç√≥w podczas tych wystƒÖpie≈Ñ w postach kiedy pojawia≈Çy siƒô czƒô≈õciej ni≈º inne zachoadzi≈Çy ciekawe i niecodzienne wydarzenia. Oto wykres tylko dla wyselekcjonowanych s≈Ç√≥w.
 
 ```{r, results="asis", echo = FALSE, fig.align='center'}
 mostf=mostf %>%
@@ -47,12 +47,12 @@ mostf %>%
   geom_bar(stat = "identity") +
   scale_fill_manual(values = getPalette(colourCount)) +
   theme(legend.position="bottom") +
-  xlab("Liczba postÛw z tym s≥owem") +
+  xlab("Liczba post√≥w z tym s≈Çowem") +
   ylab("Data") +
-  ggtitle("Maksymalne licznoúci s≥Ûw - zdarzenia")
+  ggtitle("Maksymalne liczno≈õci s≈Ç√≥w - zdarzenia")
 ```
 
-Dla trzech wybranych s≥Ûw: **film**, **aplikacja** i **emil**, zosta≥y przedstawione posty z dzatami wystπpienia oraz w przewidywanym podziale na zdarzenia
+Dla trzech wybranych s≈Ç√≥w: **film**, **aplikacja** i **emil**, zosta≈Çy przedstawione posty z datami wystƒÖpienia oraz w przewidywanym podziale na zdarzenia
 
 ```{r, results="asis", echo = FALSE}
 zd1 <- analiza_zdarzenia("film", dane, mostf, dni)
