@@ -1,0 +1,111 @@
+
+# Zdarzenia
+
+```{r, echo = FALSE, message=FALSE}
+library(knitr)
+library(RColorBrewer)
+library(stringi)
+library(dplyr)
+library(ggplot2)
+setwd("D:\\Michal\\Matematyka\\MUF\\R i Big Data\\projekt2")
+source("theMostFrequently.R")
+source("analiza_zdarzenia.R")
+source("wybor_zdarzen.R")
+
+dane <- read.csv("dane_rzecz.csv", header = TRUE)
+dane=dane%>%filter(!rzeczownik %in% c("magda", "kuba","justyna", "julian", "mariusz", "alior", "bank","alior_bank"))
+dni=7 #wielkoœæ okresów z kórych bierzemy najczêœciej wystêpuj¹ce s³owo (w dniach)
+```
+
+
+Aby znaleŸæ nietypowe zdarzenia, które mia³y miejsce w czasie, z którego posiadamy dane, przeanalizowaliœmy najczêœciej wystêpuj¹ce s³owa na przestrzeni tygodnia. Analiza odby³a siê metod¹ ruchomego okna. Aby s³owa czêsto powtarzaj¹ce siê w konwersacji nie zas³oni³y jej treœci, z analizowanych s³ów zosta³y usuniête **imona pracowników banku** odpowiadaj¹cych na maile oraz s³owa: **bank**, **alior**,**alior_bank**. Poni¿ej zosta³ przedstawiony wykres njczêœciej wystêpuj¹cych s³ów w poszczególnych okresach.
+
+```{r, echo = FALSE, message=FALSE, fig.align='center'}
+mostf=theMostFrequently(dni, dane)
+colourCount = length(unique(mostf$rzecz))
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+mostf %>%
+  filter(ile>=10) %>%
+  ggplot(aes(x = date, y = ile, fill = rzecz)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = getPalette(colourCount)) +
+  theme(legend.position="bottom") +
+  xlab("Data") +
+  ylab("Liczba postów z tym s³owem") +
+  ggtitle("Maksymalne licznoœci s³ów w danym przedziale czasu")
+```
+
+Nastêpnie odfiltrowaliœmy dane dla tych s³ów, które maj¹ udzia³ w najczêœciej pojawiaj¹cych siê s³owach nie wiêkszy ni¿ 2%. Podejrzewamy, ¿e dla tych s³ów podczas tych wyst¹pieñ w postach kiedy pojawia³y siê czêœciej ni¿ inne zachoadzi³y ciekawe i niecodzienne wydarzenia. Oto wykres tylko dla wyselekcjonowanych s³ów.
+
+```{r, results="asis", echo = FALSE, fig.align='center'}
+mostf=mostf %>%
+  filter(ile>=10) %>%
+  wybor_zdarzen(0.02)
+colourCount = length(unique(mostf$rzecz))
+mostf %>%
+  ggplot(aes(x = date, y = ile, fill = rzecz)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = getPalette(colourCount)) +
+  theme(legend.position="bottom") +
+  xlab("Liczba postów z tym s³owem") +
+  ylab("Data") +
+  ggtitle("Maksymalne licznoœci s³ów - zdarzenia")
+```
+
+Dla trzech wybranych s³ów: **film**, **aplikacja** i **emil**, zosta³y przedstawione posty z dzatami wyst¹pienia oraz w przewidywanym podziale na zdarzenia
+
+```{r, results="asis", echo = FALSE}
+zd1 <- analiza_zdarzenia("film", dane, mostf, dni)
+n=0
+cat("##", "film", "\n \n")
+for (i in zd1){
+  n=n+1
+  cat("\n###", "Zdarzenie ", n, "\n \n")
+  m=0
+  for(j in i){
+    m=m+1
+    cat("\n####", "Data: ", names(i)[m], "\n \n")
+    j <- stri_replace_all_fixed(j, "#", "")
+    j <- stri_replace_all_fixed(j, "\n", " ")
+    for(k in j){
+      cat("* ", k, "\n")
+    }
+  }
+}
+
+zd2 <- analiza_zdarzenia("aplikacja", dane, mostf, dni)
+n=0
+cat("\n##", "aplikacja", "\n \n")
+for (i in zd2){
+  n=n+1
+  cat("\n###", "Zdarzenie ", n, "\n \n")
+  m=0
+  for(j in i){
+    m=m+1
+    cat("\n####", "Data: ", names(i)[m], "\n \n")
+    j <- stri_replace_all_fixed(j, "#", "")
+    j <- stri_replace_all_fixed(j, "\n", " ")
+    for(k in j){
+      cat("* ", k, "\n")
+    }
+  }
+}
+
+zd3 <- analiza_zdarzenia("emil", dane, mostf, dni)
+n=0
+cat("\n##", "emil", "\n \n")
+for (i in zd3){
+  n=n+1
+  cat("\n###", "Zdarzenie ", n, "\n \n")
+  m=0
+  for(j in i){
+    m=m+1
+    cat("\n####", "Data: ", names(i)[m], "\n \n")
+    j <- stri_replace_all_fixed(j, "#", "")
+    j <- stri_replace_all_fixed(j, "\n", " ")
+    for(k in j){
+      cat("* ", k, "\n")
+    }
+  }
+}
+```
