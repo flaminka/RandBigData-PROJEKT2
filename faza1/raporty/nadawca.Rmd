@@ -1,0 +1,231 @@
+---
+title: ""
+output: html_document
+---
+
+# Przygotowanie danych 
+
+```{r, eval=FALSE}
+library(dplyr)
+library(stringi)
+library(ggpot2)
+
+dane<-read.csv(file.path(getwd(),"dane.csv"))
+
+dane$rzeczowniki<-stri_replace_all_regex(dane$rzeczowniki,"wior","alior")
+
+dane$rzeczowniki<-zamiana_czasownikow(dane$rzeczowniki)
+dane$rzeczowniki<-usuwanie_stopwordsow(dane$rzeczowniki)
+
+```
+
+Przetwarzanie danych dla Alior Banku SA.
+
+```{r, eval=FALSE}
+alior<-dane %>%
+   filter(user_name=="Alior Bank SA")
+
+odpowiedzi<-alior %>%
+   filter(!is.na(parent_id))
+
+alior1<-alior %>%
+   filter(is.na(parent_id))
+ 
+odpowiedzi<-odpowiedzi[,-11]
+
+magda<-lapply(1:nrow(odpowiedzi), function(x){
+  tmp<-odpowiedzi[x,"body"]
+  dl<-stri_count(odpowiedzi$body[x],regex=".")
+  if(stri_sub(odpowiedzi$body[x],from=dl-6, to=dl)=="[Magda]"){
+    tmp<-stri_match_all_regex(tmp,".+: (.+)")[[1]][,2]
+  }
+  tmp
+})
+
+odpowiedzi$body<-magda
+
+for (i in 1:nrow(odpowiedzi)) {
+  try(odpowiedzi[i, "body"] <- ortografia(body=odpowiedzi$body[[i]]))
+  cat("\r", i, "/", nrow(odpowiedzi))
+}
+cat("\n")
+
+
+odpowiedzi <- cbind(odpowiedzi, rzeczowniki = rep("", nrow(odpowiedzi)))
+
+for (i in 1:nrow(odpowiedzi)) {
+  try(odpowiedzi[i, "rzeczowniki"] <- rzeczowniki(odpowiedzi$body[[i]]))
+  cat("\r", i, "/", nrow(odpowiedzi))
+}
+cat("\n")
+
+
+write.csv(odpowiedzi, file=file.path(getwd(),"odpowiedzi.csv"))
+
+odpowiedzi$rzeczowniki<-zamiana_czasownikow(odpowiedzi$rzeczowniki)
+odpowiedzi$rzeczowniki<-usuwanie_stopwordsow(odpowiedzi$rzeczowniki)
+  
+alior<-rbind(alior1,odpowiedzi)
+
+save(alior, file = file.path(getwd(),"alior.Rdata"))
+```
+
+Wybieramy najaktywniejszych użytkowników:
+
+```{r, eval=FALSE}
+sort(table(dane$user_name), decreasing = T)[1:4]
+```
+
+Przygotowanie danych do analizy i wydobycie podstawowych statystyk :
+
+```{r, eval=FALSE}
+alior_R<-ranking_slowa(alior$rzeczowniki)
+nrow(alior_R)
+sum(alior_R$count)
+
+sort(table(as.Date(alior$created_at)),decreasing = T)[1]
+
+###
+majewski<-dane %>%
+  filter(user_name=="Łukasz Majewski")
+majewski_R<-ranking_slowa(majewski$rzeczowniki)
+nrow(majewski_R)
+sum(majewski_R$count)
+
+sort(table(as.Date(majewski$created_at)),decreasing = T)[1]
+
+###
+ziolkowski<-dane %>%
+  filter(user_name=="Tomasz Ziółkowski")
+ziolkowski_R<-ranking_slowa(ziolkowski$rzeczowniki)
+nrow(ziolkowski_R)
+sum(ziolkowski_R$count)
+
+sort(table(as.Date(ziolkowski$created_at)),decreasing = T)[1]
+
+###
+krawiec<-dane %>%
+  filter(user_name=="Paweł Krawiec")
+krawiec_R<-ranking_slowa(krawiec$rzeczowniki)
+nrow(krawiec_R)
+sum(krawiec_R$count)
+
+k_daty<-sort(table(as.Date(krawiec$created_at)),decreasing = T)[1]
+```
+
+Funkcja pomocnicza do wyglądu wykresu:
+```{r, eval=FALSE}
+wykres <- function() {
+  theme(
+    panel.background = element_rect(fill = "#E2E2E3"),
+    panel.background = element_rect(fill = "white"),
+    axis.text = element_text(colour = "#CC6600", family = "Impact",size=11),
+    plot.title = element_text(colour = "#552683", face = "bold", size = 18, vjust = 1, family = "Impact"),
+    axis.title = element_text(colour = "#552683", face = "bold", size = 13, family = "Impact"),
+    panel.grid.major.x = element_line(colour = "#CC6600"),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    strip.text = element_text(family = "Impact", colour = "white", size=11),
+    strip.background = element_rect(fill = "#CC6600"),
+    axis.ticks = element_line(colour = "#CC6600")
+  )
+}
+```
+
+
+Wykres Procentu najpopularniejszych rzeczowników u najaktywniejszych użytkowników:
+```{r, eval=FALSE}
+y<-rep(0,15)
+
+y[1]<-sum(majewski_R[which(majewski_R$word%in%c("bank","alior_bank")),"procent"])
+y[2]<-majewski_R[which(majewski_R$word=="karta"),"procent"]
+y[3]<-majewski_R[which(majewski_R$word=="konto"),"procent"]
+y[4]<-majewski_R[which(majewski_R$word=="opłata"),"procent"]
+y[5]<-majewski_R[which(majewski_R$word=="bankomat"),"procent"]
+
+y[6]<-sum(ziolkowski_R[which(ziolkowski_R$word%in%c("bank","alior_bank")),"procent"])
+y[7]<-ziolkowski_R[which(ziolkowski_R$word=="karta"),"procent"]
+y[8]<-ziolkowski_R[which(ziolkowski_R$word=="konto"),"procent"]
+y[9]<-ziolkowski_R[which(ziolkowski_R$word=="opłata"),"procent"]
+y[10]<-ziolkowski_R[which(ziolkowski_R$word=="bankomat"),"procent"]
+
+y[11]<-sum(krawiec_R[which(krawiec_R$word%in%c("bank","alior_bank")),"procent"])
+y[12]<-krawiec_R[which(krawiec_R$word=="karta"),"procent"]
+y[13]<-krawiec_R[which(krawiec_R$word=="konto"),"procent"]
+y[14]<-krawiec_R[which(krawiec_R$word=="opłata"),"procent"]
+y[15]<-krawiec_R[which(krawiec_R$word=="bankomat"),"procent"]
+
+
+x <- rep(c("bank","karta","konto","opłata","bankomat"), 3)
+grp <- rep(c("Łukasz Majewski", "Tomasz Ziółkowski", "Paweł Krawiec"), each = 5)
+dat <- data.frame(grp, x, y)
+dat$x<-factor(dat$x, levels=c("bankomat","opłata","konto","karta","bank"))
+dat$grp<-factor(dat$grp, levels=c("Łukasz Majewski", "Tomasz Ziółkowski", "Paweł Krawiec"))
+
+
+p1 <- ggplot(data = dat, aes(x = x, y = y)) + geom_bar(stat = "identity", fill = "#552683") +
+  coord_flip() + ylab("%") + xlab("Rzeczownik") + facet_grid(. ~ grp) +
+  ggtitle("Procent najpopularniejszych rzeczowników \n u najaktywniejszych użytkowników")
+
+p1<-p1+wykres()
+p1<-p1+ geom_text(aes(label = round(y,2)), col="red", size=5)
+```
+
+Wykres procentu najpopularniejszych rzeczowników w postach prcowników Alior Banku:
+
+```{r, eval=FALSE}
+y1<-as.numeric(alior_R$procent[1:10])
+x1 <- as.character(alior_R$word[1:10])
+dat1 <- data.frame( x1, y1)
+dat1$x1<-factor(dat1$x1, levels=as.character(alior_R$word[10:1]))
+
+p2 <- ggplot(data = dat1, aes(x = x1, y = y1)) + geom_bar(stat = "identity", fill = "#552683") +
+  coord_flip() + ylab("%") + xlab("Rzeczownik") + 
+  ggtitle("Procent najpopularniejszych rzeczowników \n w postach pracowników Alior Banku")
+p2
+
+p2<-p2+wykres()
+p2+geom_text(aes(label = round(y1,2)), col="red", size=5)
+
+```
+
+Funkcja zliczająca ile rzeczownikóW było użytych w danym roku przez użytkownika:
+```{r, eval=FALSE}
+suma_roczna<-function(rok="2013",nazwisko){
+  tmp<-which(strftime(nazwisko$created_at,'%Y')==rok)
+  rzeczownik<-nazwisko$rzeczowniki[tmp]
+  suma<-0
+  for(i in 1: length(rzeczownik)){
+    suma<-suma+length(unlist(strsplit(rzeczownik[[i]], split="|", fixed = T)))
+  }
+  return(suma)
+}
+```
+
+Wykres sumy rzeczowników w postach najaktywniejszych użytkowników:
+
+```{r, eval=FALSE}
+Z_Rok<-c(suma_roczna("2013",ziolkowski),suma_roczna("2014",ziolkowski),
+         suma_roczna("2015",ziolkowski))
+K_Rok<-c(suma_roczna("2013",krawiec),suma_roczna("2014",krawiec),
+         suma_roczna("2015",krawiec))
+M_Rok<-c(suma_roczna("2013",majewski),suma_roczna("2014",majewski),
+         suma_roczna("2015",majewski))
+
+y3<-c(M_Rok,Z_Rok,K_Rok)
+
+x3 <- rep(c("2013","2014","2015"), 3)
+grp3 <- rep(c("Łukasz Majewski", "Tomasz Ziółkowski", "Paweł Krawiec"), each = 3)
+dat3 <- data.frame(grp3, x3, y3)
+dat3$grp3<-factor(dat3$grp3, levels=c("Łukasz Majewski", "Tomasz Ziółkowski", "Paweł Krawiec"))
+
+p3 <- ggplot(data = dat3, aes(x = x3, y = y3)) + geom_bar(stat = "identity", fill = "#552683") +
+  coord_flip() + ylab("Suma rzeczowników") + xlab("Rok") + facet_grid(. ~ grp3) +
+  ggtitle("Roczna suma liczby rzeczowników w postach\n u najaktywniejszych użytkowników")
+p3
+p3<-p3+wykres()
+p3+geom_text(aes(label = round(y3,2)), col="red", size=5)
+
+```
+
