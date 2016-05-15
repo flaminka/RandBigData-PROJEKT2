@@ -1,0 +1,427 @@
+---
+title: "Projekt 2 Faza 1 - Analiza postów z Alior Banku"
+author: "Ewa Baranowska, Dorota Łępicka, Michał Stolarczyk, Michał M&uuml;ck"
+date: "13 maja 2016"
+output: html_document
+---
+
+```{r, echo = FALSE, message=FALSE}
+library(knitr)
+opts_chunk$set(echo = F, cache = F, warning = F, message = F)
+library(RColorBrewer)
+library(stringi)
+library(dplyr)
+library(tm)
+setwd("C:/Users/E540/Desktop/SMAD/R i Big Data/Projekt2/doWyslania")
+source("theMostFrequently.R")
+source("analiza_zdarzenia.R")
+source("wybor_zdarzen.R")
+source("usuwanie_stopwordsow.R", encoding = "UTF-8")
+source("ranking_slowa.R",encoding = "UTF-8")
+source("zamiana_czasownikow.R",encoding = "UTF-8")
+source("wordcloud_plot.R",encoding = "UTF-8")
+source("watki.R")
+source("multiplot.R",encoding = "UTF-8")
+source("rysujRozklady.R",encoding = "UTF-8")
+source("watki.R", encoding = "UTF-8")
+```
+### Przygotowanie danych
+
+Nasze dane dotyczyły postów ze strony fanpage'a AliorBanku na facebooku. Przed przystąpieniem do analiz przepuściliśmy teksty postów przez korektę językową, po czym wybraliśmy z nich słowa zakwalifikowane jako rzeczowniki i wzięliśmy ich formę podstawową. Otrzymany wynik nie do końca nas satysfakcjonował dlatego usunęliśmy z otrzymanych rzeczowników tzw. stopwordsy, a rzeczowniki odczasownikowe, których formą podstawową jest czasownik i jako czasownik były zwracane przez aplikację, zamieniliśmy z powrotem na rzeczowniki. Wyłuskane w ten sposób rzeczowniki zapisawaliśmy w formie wyraz1|wyraz2|... do nowej kolumny. W wyniku tych działań otrzymaliśmy zbiór danych danych postaci:
+
+```{r,warning=F, message=F}
+dane <- read.csv("dane_ost.csv", header = T, stringsAsFactors = F,
+                 encoding = "UTF-8")
+
+dane$rzeczowniki <- usuwanie_stopwordsow(dane$rzeczowniki)
+dane$rzeczowniki <- zamiana_czasownikow(dane$rzeczowniki)
+
+```
+
+```{r}
+kable(dane[60,-c(1)], row.names = F)
+```
+
+# Z punktu widzenia: rzeczowników
+
+### Statystyki dla rzeczowników
+
+Spójrzmy na podstawowe statystyki dotyczące rzeczowników w badanych tekstach.  W naszych danych udało nam się wyodrębnić łącznie **114 497** rzeczowników, w tym **10 825** różnych (co stanowi **9.5%** całej liczby). Patrząc na rozkład ilości wystąpień rzeczowników, widzimy bardzo mocną prawostronną skośność (górny kwantyl poniżej 5, przy maksimum równym **2609**). Wynika ona z faktu, że w zbiorze znajduje się wiele rzeczowników, które pojawiły się tylko raz w postach.
+
+```{r,message=F, warning=F}
+rzeczowniki_lista <- strsplit(unlist(dane$rzeczowniki), split = "|", fixed = T)
+rzeczowniki <- unlist(rzeczowniki_lista)
+rzeczowniki <- rzeczowniki[rzeczowniki != ""]
+
+ilosc_rzeczownikow <- length(rzeczowniki)
+rzeczowniki_unique <- unique(rzeczowniki)
+ilosc_rzeczownikow_unik <- length(rzeczowniki_unique)
+
+#ilosc_rzeczownikow_unik/ilosc_rzeczownikow*100
+
+n <- nrow(dane)
+
+srednio <- ilosc_rzeczownikow/n
+
+korpus <- Corpus(VectorSource(rzeczowniki_lista))
+korpus <- DocumentTermMatrix(korpus, control = list(wordLengths = c(1,Inf))) 
+korpus_mac <- as.matrix(korpus)
+
+# ze względu na posty podzial
+ile_rzecz_w_dok <- rowSums(korpus_mac)
+ile_rzecz_w_dok <- sort(ile_rzecz_w_dok, decreasing=TRUE)
+
+# ze względu na rzeczowniki podział
+rank <- colSums(korpus_mac)
+rank <- sort(rank, decreasing=TRUE)
+
+
+# ile unikalnych rzeczowników w postach
+ile_unik <- lapply(rzeczowniki_lista, function(x){
+   length(unique(x))
+})
+
+ile_unik <- unlist(ile_unik)
+#ile_unik[1:10]
+#ile_rzecz_w_dok[1:10]
+
+
+ile_unik_ktore <- rzeczowniki[ile_unik != ile_rzecz_w_dok]
+
+```
+
+```{r,fig.align='center'}
+rysujRozklady(rank, tytulgl = "Rozkład ilości wystąpień rzeczowników" ,max_hist_x = 100)
+```
+
+Spójrzmy na tabelę rozkładu ilości wystąpień. Widać z niej, że ponad połowa rzeczowników wystąpiła zaledwie raz. 
+```{r}
+labelki <- c("1 raz", "2-5", "6-10", "11-50", "51-100", "101-1000", "1001-2609" )
+licznosci <- cut(rank ,breaks =c(0,1,5,10,50,100,1000,max(rank)+1), 
+                 labels = labelki )
+df <- t(as.data.frame(labelki))
+colnames(df) <- labelki
+rownames(df) <- NULL
+df[1,] <- as.character(table(licznosci))
+df <- rbind(df, paste0(as.character(round(table(licznosci)/length(rank)*100,2)),"%"))
+kable(df)
+```
+
+Jako, że najprawdopodobniej większość z tych pojedynczych rzeczowników nie będzie miała większego znaczenia w analizach (literówki, przypadkowe użycie etc.), przedstawmy rozkład ilości wystąpień rzeczowników, ale bez tych pojedynczych wystąpień. Widać teraz, że górny kwantyl wzrósł o ponad połowę i wynosi teraz 11,a mediana 4. Zatem jeśli dane słowo się powtarzało przynajmniej raz, to  połowa takich słów miała liczbę wystąpień większą lub równą 4.
+
+```{r,fig.align='center'}
+rysujRozklady(rank[rank != 1], tytulgl = "Rozkład ilości wystąpień rzeczowników (bez pojedynczych)", max_hist_x = 100 )
+```
+
+### Najpopularniejsze słowa
+
+Zobaczmy graficznie jak przedstawiają się najpopularniejsze słowa. Widać, że większość słów jest związana z branżą bankową, tj. klient, konto, rachunek czy przelew. Warto zwrócić uwagę, że wśród tych najczęstszych słów znajdują się dwa imiona - Magda i Kuba. Wynika to z faktu, że na posty użytkowników w imieniu banku odpowiadały osoby o tych imionach, które zawsze pod koniec posta umieszczały swoje imię. 
+
+```{r, warning=F,message=F,fig.align='center'}
+ranking <- ranking_slowa(dane$rzeczowniki)
+ranking <- ranking[ranking$word != "",]
+#ranking1$word <- stri_replace_all_fixed(ranking1$word, pattern = "_", replacement = " ")
+wordcloud_plot(slowa = ranking$word, licznosci = ranking$count, ile_slow = 50, kolory_wg_liczn = F, od_srodka = F,
+               tytul = "Wordcloud dla 50 najczęstszych słów")
+
+```
+
+Przedstawmy ranking 10 najpopularniejszych słów wraz z ich statystykami. Jak widać najczęstszym słowem jest oczywiście **bank** z liczbą wystąpień równą **2609**. To słowo występowało w **17%** postów. Kolejnym słowem jest wspomniana Magda (**15%** postów), konto, klient, itd.
+```{r, warning=F,message=F}
+#unikalne rzeczowniki dla każdego postu
+jakie_unik <- lapply(rzeczowniki_lista, function(x){
+   u <- unique(x)[unique(x)!=""]
+})
+
+#ranking wg liczby unikalnych slow
+slowa_w_ilu_dok <- sort(table(unlist(jakie_unik)),  decreasing = T)
+slowa_w_ilu_dok_proc <- slowa_w_ilu_dok/length(dane$rzeczowniki)*100
+tab <- data.frame(word = names(slowa_w_ilu_dok_proc), procent_dok = slowa_w_ilu_dok_proc, rank_dok = 1:length(slowa_w_ilu_dok))
+colnames(tab)[colnames(tab) == "procent_dok"] <- "procent per post"
+colnames(tab)[colnames(tab) == "rank_dok"] <- "rank per post"
+tabelka <- merge(ranking,tab, by = "word")
+tabelka$rank <- as.numeric(tabelka$rank)
+tabelka <- tabelka[order(tabelka$rank),]
+tabelka$procent <- round(tabelka$procent,2)
+tabelka$`procent per post` <- round(tabelka$`procent per post`,2)
+rownames(tabelka) <- NULL
+kable(head(tabelka[,c(1,3,6,2,4,5)],10))
+
+```
+
+W tabeli umieściliśmy 2 liczby procentowe i 2 rankingi. Pierwszy ranking i procenty odnoszą się do łącznej liczby wystąpień, natomiast drugie do łącznej liczby dokumentów. Jak widać rankingi te pokrywają się dla tych 10 najpopularniejszych słów. W większości przypadków rangi poszczególnych słów pokrywają się lub różnią o zaledwie parę pozycji. Słowa, dla których te rankingi różnią się o więcej niz 5 wylistowaliśmy poniżej. Jest ich 14 i są to tylko rzeczowniki odczasownikowe. Występowały one częściej per post niż w łącznej sumie rzeczowników. Zwróćmy uwagę, że dla każdego z tych słów ranga w rankingu wg występowania jest wyższa (jest wyżej w rankingu) niż ranga z rankingu per post. Zatem jeśli te słowo wystąpiło to raczej w jednym poście kilkukrotnie niż pojedynczo w wielu postach. 
+
+```{r}
+tabeleczka <- tabelka
+tabeleczka$rozn <- abs(tabelka$rank - tabelka$`rank per post`)
+ktore <- tabeleczka$rozn > 5
+tabeleczka1 <- tabeleczka[ktore,]
+tabeleczka1 <- tabeleczka1[order(tabeleczka1$rozn, decreasing = T),]
+rownames(tabeleczka1) <- NULL
+kable(tabeleczka1[,c(1,3,6,2,4,5,7)])
+```
+
+Zobaczmy przykładowy post dla słowa "anulowanie":
+
+**--------------------------------------------------------------**
+
+```{r}
+cooo <- stri_detect_fixed(dane$rzeczowniki, pattern = "anulowanie")
+dane111 <- dane[cooo,]
+df <-data.frame(cos =dane[10973,"body"])
+#kable(df, col.names = "")
+```
+
+
+"Skontaktowałam się z Waszą infolinią, i co? I nic. Nadal wniosek wisi w powietrzu, nie ma go komu anulować, mija już 5 dzień a ja chciałam założyć w Waszym banku konto firmowe, chyba popełniłabym największy błąd w życiu bo jak miałaby  działać tak samo obsługa mojego konta jak **anulowanie** wniosku, to ja bardzo podziękuje. Dzięki temu, że wniosek nadal jest aktywny wstrzymaliście mi możliwość zaciągnięcie np. pożyczki w innym banku. Jest to nie dopuszczalne, od 5 dni czekam na **anulowanie** wniosku, Wasz \"bank\" jest po prostu zły!  Jak można tyle czekać na **anulowanie**? **Anulowanie** własnego wniosku, Wam jak raty nie zapłacę w terminie to mało głowy człowiekowi nie urwiecie! Straszycie, szantażujecie etc. Dość tego, mam prawo napisać na Was skargę. I zrobię to."
+
+
+**-------------------------------------------------------------**
+
+Czyli rzeczywiście dane potwierdzają powyższy wniosek. W przytoczonym przykładzie klient chce anulować wniosek i aby opisać swoją prośbę/problem wprost kilkukrotnie używa słowa "anulowanie".
+
+### Statystyki dla postów
+
+Przyjrzyjmy się teraz rozkładowi rzeczowników w postach. W zbiorze danych mamy **15 594** posty, a na post przypada średnio **7.34** rzeczownika. Ten rozkład jak można było się spodziewać jest również prawostronnie skośny, mamy dużo postów z małą ilością rzeczowników
+
+```{r,fig.align='center'}
+rysujRozklady(ile_rzecz_w_dok, tytulgl = "Rozkład ilości rzeczowników w postach", max_hist_x = 100)
+```
+
+Maksymalna ilość rzeczowników w jednym poście wynosiła **156**. Post o największej ilości rzeczowników dotyczył opisu sytuacji, która miała miejsce w banku, więc duża ilość rzeczowników wynikała po pierwsze z charakteru postu jako opisu, a po drugie z jego znacznej długości.
+
+### Rozkład wybranych słów w czasie
+
+Spójrzmy na rozkład wybranych popularnych słów w czasie. Nasze dane pochodzą z okresu od **20 czerwca 2013** roku do **28 lutego 2016** roku, czyli mamy dane z **984** dni. W celu wykrycia nietypowych sytuacji przeanalizowaliśmy wykresy ilości wystąpień charakterystycznych słów w czasie liczonym w tygodniach. Jako nietypową liczbę wystąpień danego słowa potraktowaliśmy liczbę większą od 3 odchyleń standardowych dla wystąpień danego słowa. Z tych nietypowych liczb wybieraliśmy tą maksymalną i dla niej przeglądaliśmy posty z danego tygodnia w celu sprawdzenia powodu tak nagłego wzrostu wystapień wybranego słowa. 
+
+Zanalizowaliśmy wykres dla słowa "problem" i "awaria". Z wykresu dla "problemu" widać wyraźny pik w okolicach początku 2014. 
+
+```{r,fig.align='center'}
+# inne slowo
+wykres_ts <- function(slowo, data = dane, korpus=korpus_mac){
+   require(xts)
+   czasy <- data$created_at
+   czasy <- as.POSIXct(czasy)
+   ile <- table(czasy)
+   wystapienia1<- korpus[,slowo]
+   razem <- data.frame( czas = czasy, wystapienia = wystapienia1)
+   razem.xts <- xts(razem$wystapienia,as.POSIXct(razem$czas))
+   ends <- endpoints(razem.xts,on='weeks') 
+   skumulowane <- period.apply(razem.xts,ends,sum)
+   plot.xts(skumulowane, main = paste0("Wystąpienia słowa ",slowo," w czasie (per week)"), auto.grid = F, type="l")
+   lines(skumulowane, col = "blue")
+   which <- as.numeric(skumulowane) > sqrt(var(as.numeric(skumulowane)))*3 #IQR(skumulowane)*1.34  
+   daty <- skumulowane[which]
+   tydzien <- format(x=as.Date(as.character(index(daty))), format="%W"  )
+   rok <- format(x=as.Date(as.character(index(daty))), format="%Y"  )
+   kiedy <- lapply(as.list(1:length(rok)), function(i){
+      
+      czas <- format(czasy[format(czasy, "%W") == tydzien[i] & format(czasy, "%Y") == rok[i]], "%Y-%m-%d %H:%M:%S")
+      
+   })
+   
+   kiedy <- kiedy[order(as.numeric(daty), decreasing = T)] # zwraca w kolejnosci malejacej
+}
+
+
+daty1 <- wykres_ts("problem")
+
+```
+
+Przyjrzyjmy się typowemu postowi z tygodnia, który odpowiadał temu pikowi. Jak widać problem dotyczył logowania się online na stronie internetowej banku.
+```{r}
+co <- dane[dane$created_at %in% daty1[[1]],]
+co <- co[stri_detect_fixed(co$rzeczowniki, pattern = "problem"), c("created_at","body")]
+co$body <-stri_replace_all_regex(co$body, pattern = "\\\n", replacement = " ")
+co$body <-stri_replace_all_fixed(co$body, pattern = "\"", replacement = " ")
+kable(co[1,], row.names = F)
+
+
+```
+
+Podobnie zrobiliśmy dla słowa "awaria". Wyraźny skok był widoczny koło czerwca 2015. Z typowego postu dla tego tygodnia wynika, że awaria dotyczyła bankomatów.
+
+```{r,fig.align='center'}
+daty1 <- wykres_ts("awaria")
+co <- dane[dane$created_at %in% daty1[[1]],]
+co <- co[stri_detect_fixed(co$rzeczowniki, pattern = "awaria"), c("created_at","body")]
+co$body <-stri_replace_all_regex(co$body, pattern = "\\\n", replacement = " ")
+co$body <-stri_replace_all_fixed(co$body, pattern = "\"", replacement = " ")
+kable(co[15,], row.names = F)
+```
+
+# Z punktu widzenia: grup nadawców
+
+W tym punkcie dokonując analizy rzeczowników w komentarzach Alior Banku zostały dodatkowo usunięte imiona i nazwiska (bądź  wymyślone nazwy) adresatów postów. 
+Aktywny udział (więcej niż 1 komentarz) brało **4645** różnych użytkowników. Przedstawimy teraz kilka podstawowych statystyk dotyczących pracowników banku oraz 3 najaktywniejszych osób: Łukasza Majewskiego, Tomasza Ziółkowskiego i Pawła Krawca.
+
+| Użytkownik        | Liczba postów | Różnych rzeczowników | Suma rzeczowników | Największa aktywność |
+|-------------------|---------------|----------------------|-------------------|----------------------|
+| Alior Bank SA     | 5032          | 3788                 | 37397             | 2014-05-05           |
+| Łukasz Majewski   | 278           | 612                  | 2170              | 2013-10-22           |
+| Tomasz Ziółkowski | 111           | 287                  | 546               | 2014-04-02           |
+| Paweł Krawiec     | 89            | 241                  | 390               | 2014-07-08           |
+
+Na poniższym wykresie przedstawiliśmy rozkład sumy rzeczowników z podziałem na lata u trzech najaktywniejszych użytkowników.
+
+<img src="rok.png" alt="Drawing" style="width: 700px;"/>
+
+Możemy zaobserwować, że u wszystkich użytkowników najwięcej rzeczowników było w komentarzy w 2014 roku. Widać również skrajne różnice w sumie rzeczowników między nadawcami, ale procentowy udział  w 2014 Majewski - 63%, Ziółkowski - 64%, Krawiec - 54% jest podobny. Wszyscy panowie nie pisali już komentarzy w 2016 roku. 
+
+Przyjrzyjmy się teraz jakie rzeczowniki powtarzały się najczęściej w komentarzach użytkowników i Alior Banku. 
+
+<img src="nazwisko.png" alt="Drawing" style="width: 700px;"/>
+
+Jak widać panowie Łukasz i Tomasz używali podobnych rzeczowników, natomiast Paweł nieco odbiega od nich. W postach p.Krawca na czołowych miejscach znajdowały się również słowa: oddział, klient i farsa, których nie było w pierwszej 10 u pozostałych osób.
+
+<img src="alior.png" alt="Drawing" style="width: 700px;"/>
+
+Możemy również zauważyć, że 7/10 najpopularniejszych rzeczowników w postach Alior Banku pokrywają się z ogólnymi statystykami.
+
+# Z punktu widzenia: wątków
+
+```{r, echo = FALSE, message=FALSE}
+options(stringsAsFactors = FALSE)
+dane <- read.csv("dane_ost.csv", encoding="UTF-8")
+```
+
+
+W zbiorze danych znajdują się **15594** posty zgrupowane w **3276** wątkach. Średnia liczba postów w wątku wynosi **4.76**, natomiast mediana jest równa **3**.
+
+```{r, echo = FALSE, message=FALSE, fig.align='center'}
+library(ggplot2)
+data.frame(x = table(dane$thread_id)) %>%
+    ggplot(aes(x=x.Freq)) +
+    geom_histogram() +
+    xlab("Liczba postów w wątku") +
+    ylab("Liczność") +
+    ggtitle("Rozkład liczby postów w wątkach")
+```
+
+Posty w jednym wątku powinny mieć zbliżony temat, dlatego w dalszej analizie wątki będziemy traktować jak jeden tekst. 
+Aby znaleźć problemy jakie napotykają klienci, szukaliśmy słów kluczowych: **awaria, problem, uwaga**. Wątki z dużą liczbą takich słów będą prawdopodobnie zawierały uwagi dotyczące usług banku. Poniższy wykres przedstawia zależność liczby takich słów w wątkach od czasu. 
+
+```{r, results="asis", echo = FALSE}
+wykres <- wykres_watki_keywords(dane, c("awaria", "problem", "uwaga"))
+print(wykres, "chart")
+```
+
+
+Dodatkowo po najechaniu na punkt, jest wyświetlane id wątku oraz 5 najbardziej *charakterystycznych* słów. *Charakterystyczność* słowa dla wątku mierzyliśmy za pomocą wag **tfidf**. Waga **tfidf** dla słowa $i$ w tekście $j$ jest zdefiniowana jako
+\[  \mathrm{tfidf}_{ij}  = \mathrm{tf}_{ij} \cdot  \mathrm{idf}_{i},  \]
+gdzie $\mathrm{tf}_{ij}$ jest częstością występowania słowa $i$ w tekście $j$, natomiast
+$\mathrm{idf}_{i}$ jest logarytmem ilorazu liczby tekstów przez liczbę dokumentów, w których występuje $i$-te słowo. 
+
+Gdy słowo występuje w większości tekstów, idf będzie małe, dzięki czemu waga dla tego słowa też będzie mała. Natomiast gdy słowo występuje w niewielu tekstach, to idf będzie duże, przez co waga $\mathrm{tfidf}$ również będzie rosła.
+
+Poniżej przedstawiamy dwa wątki z największą liczbą słów kluczowych.
+
+```{r, results="asis", echo = FALSE}
+watek1 <- stri_replace_all_fixed(dane[dane$thread_id == 221343, "body"], "\n", " ")
+cat("#### id = 221343 \n \n")
+cat(paste0("* ", watek1, collapse = "\n"))
+cat("\n \n \n")
+watek2 <- stri_replace_all_fixed(dane[dane$thread_id == 1200716, "body"], "\n", " ")
+cat("#### id = 1200716 \n \n")
+cat(paste0("* ", watek2, collapse = "\n"))
+```
+
+# Z punktu widzenia: zdarzeń
+
+```{r}
+dane <- read.csv("dane_rzecz.csv", header = TRUE)
+dane=dane%>%filter(!rzeczownik %in% c("magda", "kuba","justyna", "julian", "mariusz", "alior", "bank","alior_bank"))
+dni=7 #wielkość okresów z kórych bierzemy najczęściej występujące słowo (w dniach)
+```
+
+Aby znaleźć nietypowe zdarzenia, które miały miejsce w czasie, z którego posiadamy dane, przeanalizowaliśmy najczęściej występujące słowa na przestrzeni tygodnia. Analiza odbyła się metodą ruchomego okna. Aby słowa często powtarzające się w konwersacji nie zasłoniły jej treści, z analizowanych słów zostały usunięte **imona pracowników banku** odpowiadających na maile oraz słowa: **bank**, **alior**,**alior_bank**. Poniżej został przedstawiony wykres najczęściej występujących słów w poszczególnych okresach.
+
+```{r, echo = FALSE, message=FALSE, fig.align='center'}
+mostf=theMostFrequently(dni, dane)
+colourCount = length(unique(mostf$rzecz))
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+mostf %>%
+  filter(ile>=10) %>%
+  ggplot(aes(x = date, y = ile, fill = rzecz)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = getPalette(colourCount)) +
+  theme(legend.position="bottom") +
+  xlab("Data") +
+  ylab("Liczba postów z tym słowem") +
+  ggtitle("Maksymalne liczności słów w danym przedziale czasu")
+```
+
+Następnie odfiltrowaliśmy dane dla tych słów, które mają udział w najczęściej pojawiających się słowach nie większy niż 2%. Podejrzewamy, że dla tych słów podczas tych wystąpień w postach kiedy pojawiały się częściej niż inne zachodziły ciekawe i niecodzienne wydarzenia. Oto wykres tylko dla wyselekcjonowanych słów.
+
+```{r, results="asis", echo = FALSE, fig.align='center'}
+mostf=mostf %>%
+  filter(ile>=10) %>%
+  wybor_zdarzen(0.02)
+colourCount = length(unique(mostf$rzecz))
+mostf %>%
+  ggplot(aes(x = date, y = ile, fill = rzecz)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = getPalette(colourCount)) +
+  theme(legend.position="bottom") +
+  ylab("Liczba postów z tym słowem") +
+  xlab("Data") +
+  ggtitle("Maksymalne liczności słów - zdarzenia")
+```
+
+Dla trzech wybranych słów: **film**, **aplikacja** i **emil**, zostały przedstawione posty z datami wystąpienia oraz w przewidywanym podziale na zdarzenia.
+
+```{r, results="asis", echo = FALSE}
+zd1 <- analiza_zdarzenia("film", dane, mostf, dni)
+n=0
+cat("##", "film", "\n \n")
+for (i in zd1){
+  n=n+1
+  cat("\n###", "Zdarzenie ", n, "\n \n")
+  m=0
+  for(j in i){
+    m=m+1
+    cat("\n####", "Data: ", names(i)[m], "\n \n")
+    j <- stri_replace_all_fixed(j, "#", "")
+    j <- stri_replace_all_fixed(j, "\n", " ")
+    for(k in j){
+      cat("* ", k, "\n")
+    }
+  }
+}
+
+zd2 <- analiza_zdarzenia("aplikacja", dane, mostf, dni)
+n=0
+cat("\n##", "aplikacja", "\n \n")
+for (i in zd2){
+  n=n+1
+  cat("\n###", "Zdarzenie ", n, "\n \n")
+  m=0
+  for(j in i){
+    m=m+1
+    cat("\n####", "Data: ", names(i)[m], "\n \n")
+    j <- stri_replace_all_fixed(j, "#", "")
+    j <- stri_replace_all_fixed(j, "\n", " ")
+    for(k in j){
+      cat("* ", k, "\n")
+    }
+  }
+}
+
+zd3 <- analiza_zdarzenia("emil", dane, mostf, dni)
+n=0
+cat("\n##", "emil", "\n \n")
+for (i in zd3){
+  n=n+1
+  cat("\n###", "Zdarzenie ", n, "\n \n")
+  m=0
+  for(j in i){
+    m=m+1
+    cat("\n####", "Data: ", names(i)[m], "\n \n")
+    j <- stri_replace_all_fixed(j, "#", "")
+    j <- stri_replace_all_fixed(j, "\n", " ")
+    for(k in j){
+      cat("* ", k, "\n")
+    }
+  }
+}
+```
