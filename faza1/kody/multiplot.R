@@ -10,7 +10,7 @@
 #' 
 #' @export
 
-multiplot <- function(..., cols=1, titlesize = 20, title="") {
+multiplot <- function(..., cols=1, titlesize = 18, title="") {
    
    require(grid)
    

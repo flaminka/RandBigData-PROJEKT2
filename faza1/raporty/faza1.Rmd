@@ -12,7 +12,7 @@ library(RColorBrewer)
 library(stringi)
 library(dplyr)
 library(tm)
-setwd("C:/Users/E540/Desktop/SMAD/R i Big Data/Projekt2/doWyslania")
+setwd("C:/Users/E540/Desktop/SMAD/R i Big Data/Projekt2/do WYSŁANIA")
 source("theMostFrequently.R")
 source("analiza_zdarzenia.R")
 source("wybor_zdarzen.R")
@@ -24,10 +24,11 @@ source("watki.R")
 source("multiplot.R",encoding = "UTF-8")
 source("rysujRozklady.R",encoding = "UTF-8")
 source("watki.R", encoding = "UTF-8")
+source("wykres_ts.R", encoding = "UTF-8")
 ```
 ### Przygotowanie danych
 
-Nasze dane dotyczyły postów ze strony fanpage'a AliorBanku na facebooku. Przed przystąpieniem do analiz przepuściliśmy teksty postów przez korektę językową, po czym wybraliśmy z nich słowa zakwalifikowane jako rzeczowniki i wzięliśmy ich formę podstawową. Otrzymany wynik nie do końca nas satysfakcjonował dlatego usunęliśmy z otrzymanych rzeczowników tzw. stopwordsy, a rzeczowniki odczasownikowe, których formą podstawową jest czasownik i jako czasownik były zwracane przez aplikację, zamieniliśmy z powrotem na rzeczowniki. Wyłuskane w ten sposób rzeczowniki zapisawaliśmy w formie wyraz1|wyraz2|... do nowej kolumny. W wyniku tych działań otrzymaliśmy zbiór danych danych postaci:
+Nasze dane dotyczyły postów z fanpage'a AliorBanku na facebooku. Przed przystąpieniem do analiz przepuściliśmy teksty postów przez korektę językową, po czym wybraliśmy z nich słowa zakwalifikowane jako rzeczowniki i wzięliśmy ich formę podstawową. Otrzymany wynik nie do końca nas satysfakcjonował dlatego usunęliśmy z otrzymanych rzeczowników tzw. stopwordsy, a rzeczowniki odczasownikowe, których formą podstawową jest czasownik i jako czasownik były zwracane przez aplikację, zamieniliśmy z powrotem na rzeczowniki. Wyłuskane w ten sposób rzeczowniki zapisawaliśmy w formie wyraz1|wyraz2|... do nowej kolumny. W wyniku tych działań otrzymaliśmy zbiór danych danych postaci:
 
 ```{r,warning=F, message=F}
 dane <- read.csv("dane_ost.csv", header = T, stringsAsFactors = F,
@@ -48,49 +49,13 @@ kable(dane[60,-c(1)], row.names = F)
 
 Spójrzmy na podstawowe statystyki dotyczące rzeczowników w badanych tekstach.  W naszych danych udało nam się wyodrębnić łącznie **114 497** rzeczowników, w tym **10 825** różnych (co stanowi **9.5%** całej liczby). Patrząc na rozkład ilości wystąpień rzeczowników, widzimy bardzo mocną prawostronną skośność (górny kwantyl poniżej 5, przy maksimum równym **2609**). Wynika ona z faktu, że w zbiorze znajduje się wiele rzeczowników, które pojawiły się tylko raz w postach.
 
-```{r,message=F, warning=F}
+```{r,fig.align='center'}
 rzeczowniki_lista <- strsplit(unlist(dane$rzeczowniki), split = "|", fixed = T)
-rzeczowniki <- unlist(rzeczowniki_lista)
-rzeczowniki <- rzeczowniki[rzeczowniki != ""]
-
-ilosc_rzeczownikow <- length(rzeczowniki)
-rzeczowniki_unique <- unique(rzeczowniki)
-ilosc_rzeczownikow_unik <- length(rzeczowniki_unique)
-
-#ilosc_rzeczownikow_unik/ilosc_rzeczownikow*100
-
-n <- nrow(dane)
-
-srednio <- ilosc_rzeczownikow/n
-
 korpus <- Corpus(VectorSource(rzeczowniki_lista))
 korpus <- DocumentTermMatrix(korpus, control = list(wordLengths = c(1,Inf))) 
 korpus_mac <- as.matrix(korpus)
-
-# ze względu na posty podzial
-ile_rzecz_w_dok <- rowSums(korpus_mac)
-ile_rzecz_w_dok <- sort(ile_rzecz_w_dok, decreasing=TRUE)
-
-# ze względu na rzeczowniki podział
 rank <- colSums(korpus_mac)
 rank <- sort(rank, decreasing=TRUE)
-
-
-# ile unikalnych rzeczowników w postach
-ile_unik <- lapply(rzeczowniki_lista, function(x){
-   length(unique(x))
-})
-
-ile_unik <- unlist(ile_unik)
-#ile_unik[1:10]
-#ile_rzecz_w_dok[1:10]
-
-
-ile_unik_ktore <- rzeczowniki[ile_unik != ile_rzecz_w_dok]
-
-```
-
-```{r,fig.align='center'}
 rysujRozklady(rank, tytulgl = "Rozkład ilości wystąpień rzeczowników" ,max_hist_x = 100)
 ```
 
@@ -136,10 +101,13 @@ jakie_unik <- lapply(rzeczowniki_lista, function(x){
 #ranking wg liczby unikalnych slow
 slowa_w_ilu_dok <- sort(table(unlist(jakie_unik)),  decreasing = T)
 slowa_w_ilu_dok_proc <- slowa_w_ilu_dok/length(dane$rzeczowniki)*100
-tab <- data.frame(word = names(slowa_w_ilu_dok_proc), procent_dok = slowa_w_ilu_dok_proc, rank_dok = 1:length(slowa_w_ilu_dok))
+tab <- data.frame(word = names(slowa_w_ilu_dok_proc), procent_dok = slowa_w_ilu_dok_proc, 
+                  rank_dok = rank(-slowa_w_ilu_dok, ties.method = "min"))
 colnames(tab)[colnames(tab) == "procent_dok"] <- "procent per post"
 colnames(tab)[colnames(tab) == "rank_dok"] <- "rank per post"
-tabelka <- merge(ranking,tab, by = "word")
+
+# laczymy obie tabelki
+tabelka <- merge(ranking, tab, by = "word")
 tabelka$rank <- as.numeric(tabelka$rank)
 tabelka <- tabelka[order(tabelka$rank),]
 tabelka$procent <- round(tabelka$procent,2)
@@ -165,14 +133,6 @@ Zobaczmy przykładowy post dla słowa "anulowanie":
 
 **--------------------------------------------------------------**
 
-```{r}
-cooo <- stri_detect_fixed(dane$rzeczowniki, pattern = "anulowanie")
-dane111 <- dane[cooo,]
-df <-data.frame(cos =dane[10973,"body"])
-#kable(df, col.names = "")
-```
-
-
 "Skontaktowałam się z Waszą infolinią, i co? I nic. Nadal wniosek wisi w powietrzu, nie ma go komu anulować, mija już 5 dzień a ja chciałam założyć w Waszym banku konto firmowe, chyba popełniłabym największy błąd w życiu bo jak miałaby  działać tak samo obsługa mojego konta jak **anulowanie** wniosku, to ja bardzo podziękuje. Dzięki temu, że wniosek nadal jest aktywny wstrzymaliście mi możliwość zaciągnięcie np. pożyczki w innym banku. Jest to nie dopuszczalne, od 5 dni czekam na **anulowanie** wniosku, Wasz \"bank\" jest po prostu zły!  Jak można tyle czekać na **anulowanie**? **Anulowanie** własnego wniosku, Wam jak raty nie zapłacę w terminie to mało głowy człowiekowi nie urwiecie! Straszycie, szantażujecie etc. Dość tego, mam prawo napisać na Was skargę. I zrobię to."
 
 
@@ -185,6 +145,8 @@ Czyli rzeczywiście dane potwierdzają powyższy wniosek. W przytoczonym przykł
 Przyjrzyjmy się teraz rozkładowi rzeczowników w postach. W zbiorze danych mamy **15 594** posty, a na post przypada średnio **7.34** rzeczownika. Ten rozkład jak można było się spodziewać jest również prawostronnie skośny, mamy dużo postów z małą ilością rzeczowników
 
 ```{r,fig.align='center'}
+ile_rzecz_w_dok <- rowSums(korpus_mac)
+ile_rzecz_w_dok <- sort(ile_rzecz_w_dok, decreasing=TRUE)
 rysujRozklady(ile_rzecz_w_dok, tytulgl = "Rozkład ilości rzeczowników w postach", max_hist_x = 100)
 ```
 
@@ -197,35 +159,7 @@ Spójrzmy na rozkład wybranych popularnych słów w czasie. Nasze dane pochodz�
 Zanalizowaliśmy wykres dla słowa "problem" i "awaria". Z wykresu dla "problemu" widać wyraźny pik w okolicach początku 2014. 
 
 ```{r,fig.align='center'}
-# inne slowo
-wykres_ts <- function(slowo, data = dane, korpus=korpus_mac){
-   require(xts)
-   czasy <- data$created_at
-   czasy <- as.POSIXct(czasy)
-   ile <- table(czasy)
-   wystapienia1<- korpus[,slowo]
-   razem <- data.frame( czas = czasy, wystapienia = wystapienia1)
-   razem.xts <- xts(razem$wystapienia,as.POSIXct(razem$czas))
-   ends <- endpoints(razem.xts,on='weeks') 
-   skumulowane <- period.apply(razem.xts,ends,sum)
-   plot.xts(skumulowane, main = paste0("Wystąpienia słowa ",slowo," w czasie (per week)"), auto.grid = F, type="l")
-   lines(skumulowane, col = "blue")
-   which <- as.numeric(skumulowane) > sqrt(var(as.numeric(skumulowane)))*3 #IQR(skumulowane)*1.34  
-   daty <- skumulowane[which]
-   tydzien <- format(x=as.Date(as.character(index(daty))), format="%W"  )
-   rok <- format(x=as.Date(as.character(index(daty))), format="%Y"  )
-   kiedy <- lapply(as.list(1:length(rok)), function(i){
-      
-      czas <- format(czasy[format(czasy, "%W") == tydzien[i] & format(czasy, "%Y") == rok[i]], "%Y-%m-%d %H:%M:%S")
-      
-   })
-   
-   kiedy <- kiedy[order(as.numeric(daty), decreasing = T)] # zwraca w kolejnosci malejacej
-}
-
-
-daty1 <- wykres_ts("problem")
-
+daty1 <- wykres_ts("problem", data=dane, korpus=korpus_mac)
 ```
 
 Przyjrzyjmy się typowemu postowi z tygodnia, który odpowiadał temu pikowi. Jak widać problem dotyczył logowania się online na stronie internetowej banku.
@@ -235,8 +169,6 @@ co <- co[stri_detect_fixed(co$rzeczowniki, pattern = "problem"), c("created_at",
 co$body <-stri_replace_all_regex(co$body, pattern = "\\\n", replacement = " ")
 co$body <-stri_replace_all_fixed(co$body, pattern = "\"", replacement = " ")
 kable(co[1,], row.names = F)
-
-
 ```
 
 Podobnie zrobiliśmy dla słowa "awaria". Wyraźny skok był widoczny koło czerwca 2015. Z typowego postu dla tego tygodnia wynika, że awaria dotyczyła bankomatów.
