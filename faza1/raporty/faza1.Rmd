@@ -283,6 +283,7 @@ Możemy również zauważyć, że 7/10 najpopularniejszych rzeczowników w posta
 ```{r, echo = FALSE, message=FALSE}
 options(stringsAsFactors = FALSE)
 dane <- read.csv("dane_ost.csv", encoding="UTF-8")
+dane$created_at <- as.POSIXct(dane$created_at)
 ```
 
 
@@ -310,7 +311,7 @@ print(wykres, "chart")
 Dodatkowo po najechaniu na punkt, jest wyświetlane id wątku oraz 5 najbardziej *charakterystycznych* słów. *Charakterystyczność* słowa dla wątku mierzyliśmy za pomocą wag **tfidf**. Waga **tfidf** dla słowa $i$ w tekście $j$ jest zdefiniowana jako
 \[  \mathrm{tfidf}_{ij}  = \mathrm{tf}_{ij} \cdot  \mathrm{idf}_{i},  \]
 gdzie $\mathrm{tf}_{ij}$ jest częstością występowania słowa $i$ w tekście $j$, natomiast
-$\mathrm{idf}_{i}$ jest logarytmem ilorazu liczby tekstów przez liczbę dokumentów, w których występuje $i$-te słowo. 
+$\mathrm{idf}_{i}$ jest logarytmem ilorazu liczby wszystkich tekstów przez liczbę tekstów, w których występuje $i$-te słowo. 
 
 Gdy słowo występuje w większości tekstów, idf będzie małe, dzięki czemu waga dla tego słowa też będzie mała. Natomiast gdy słowo występuje w niewielu tekstach, to idf będzie duże, przez co waga $\mathrm{tfidf}$ również będzie rosła.
 
