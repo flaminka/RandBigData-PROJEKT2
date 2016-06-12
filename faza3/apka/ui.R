@@ -2,33 +2,7 @@ library(shinydashboard)
 library(shiny)
 
 
-
-
-header <- dashboardHeader(title = "Wykrywanie charakterystycznych słów na fanpage'ach banków",
-                          titleWidth = 650)
-
-header$children[[3]]$children[[3]] <- 
-    tags$div(class = "autorzy",
-             "Ewa Baranowska, Dorota Łępicka, Michał Mück, Michał Stolarczyk")
-
-
-
-sidebar <- dashboardSidebar(
-    dateRangeInput("daty", "Wybierz zakres dat", 
-                   start = "2013-06-20", end = "2016-03-01"),
-    
-    selectInput("slowoKlucz", "Wybierz słowo kluczowe",
-                choices = c("problem", "awaria", "reklamacja"), 
-                selected = "problem")
-    
-    
-)
-
-
-
-
-body <- dashboardBody(
-    tags$head(tags$style(HTML('
+style <- tags$head(tags$style(HTML('
       .autorzy {
         color: #FFFFFF;
         font-size: 16px;
@@ -38,19 +12,44 @@ body <- dashboardBody(
       * {
         font-family: serif;
       }
-    '))),
+      .box-header {
+        text-align: center;
+      }
+    ')))
+
+####################
+
+header <- dashboardHeader(title = "Wykrywanie charakterystycznych słów na fanpage'ach banków",
+                          titleWidth = 650)
+header$children[[3]]$children[[3]] <- 
+    tags$div(class = "autorzy",
+             "Ewa Baranowska, Dorota Łępicka, Michał Mück, Michał Stolarczyk")
+
+
+####################
+
+sidebar <- dashboardSidebar(
+    dateRangeInput("daty", "Wybierz zakres dat", 
+                   start = "2013-06-20", end = "2016-03-01"),
     
+    selectInput("slowoKlucz", "Wybierz słowo kluczowe",
+                choices = c("problem", "awaria", "reklamacja"), 
+                selected = "problem")
+)
+
+###################
+
+body <- dashboardBody(
+
+    style,
     
-    box(title = "Liczba słów kluczowych", width = 8,
+    box(title = "Liczba słów kluczowych", width = 8, status = "primary",
         plotOutput("wykres",
-                   click = "wykresClick",
-                   width = 600, height = 400)),
-    box(title = "Wybrany wątek", width = 4,
+                   click = "wykresClick")),
+    box(title = "Wybrany wątek", width = 4, status = "primary",
         htmlOutput("watek"))
    
 )
-
-
 
 
 dashboardPage(
