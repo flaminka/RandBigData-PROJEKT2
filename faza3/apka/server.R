@@ -1,16 +1,15 @@
 library(ggplot2)
 library(stringi)
+library(dplyr)
 source("filterByPlotDF.R", encoding = "cp1250")
-source("filterByPlotList.R", encoding = "cp1250")
 
-dane <- read.csv("dane_rzecz.csv", stringsAsFactors = FALSE)
 
-dane$body <- stri_encode(dane$body, from = "cp1250", to = "utf-8")
-dane$rzeczownik <- stri_encode(dane$rzeczownik, from = "cp1250", to = "utf-8")
+load("dane.rda")
+czeste <- list(ALIOR = filterByPlotDF("2013-06-20", "2016-02-28", dane$ALIOR),
+               BZW = filterByPlotDF("2013-06-20", "2016-02-28", dane$BZW),
+               ING = filterByPlotDF("2013-06-20", "2016-02-28", dane$ING))
 
-czeste <- filterByPlotDF("2013-06-20", "2016-02-28", dane)
-
-czeste$date <- as.POSIXct(czeste$date)
+czeste <- lapply(czeste, function(x) {x$date <- as.POSIXct(x$date); x} )
 
 
 
@@ -19,7 +18,7 @@ shinyServer(function(input, output, session) {
     
     
     wybierzRzeczownik <- reactive({
-        filter(czeste, rzeczownik == input$slowoKlucz)
+        filter(czeste[[input$bank]], rzeczownik == input$slowoKlucz)
     })
 
     watek <- reactiveValues(
@@ -54,14 +53,14 @@ shinyServer(function(input, output, session) {
         if (length(watek) > 0) {
             watek <- watek[1]
             
-            filter(dane, tread == watek) %>% slice(1) ->
+            filter(dane[[input$bank]], tread == watek) %>% slice(1) ->
                 utworzony
             utworzony <- utworzony$created_at
             
-            typowe <- filter(czeste, tread == watek)$rzeczownik
+            typowe <- filter(czeste[[input$bank]], tread == watek)$rzeczownik
             typowe <- paste(typowe, collapse = ", ")
             
-            filter(dane, tread == watek) %>%
+            filter(dane[[input$bank]], tread == watek) %>%
                 group_by(id) %>%
                 slice(1) %>% ungroup() -> posty
             
@@ -87,6 +86,9 @@ shinyServer(function(input, output, session) {
         }
     })
     observeEvent(input$slowoKlucz,  {
+        watek$watek <- NULL
+    })
+    observeEvent(input$bank,  {
         watek$watek <- NULL
     })
 })
