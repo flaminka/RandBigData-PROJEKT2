@@ -129,7 +129,7 @@ $(document).ready(function () {
 <li>id - id postu,</li>
 <li>parent_id - id rodzica postu, jeśli taki nie istnieje jest brak danych,</li>
 <li>created_at - data utworzenia postu,</li>
-<li>tread - numer wątku do którego należy post,</li>
+<li>tread_id - numer wątku do którego należy post,</li>
 <li>user_name - nazwa autora postu,</li>
 <li>body - treść postu,</li>
 <li>rzeczownik - rzeczowniki które znajdują się w poście zapisane w formie podstawowej.</li>
@@ -163,7 +163,7 @@ $(document).ready(function () {
 </div>
 <div id="przetwarzanie-danych" class="section level1">
 <h1>Przetwarzanie danych</h1>
-<p>Jako dane wejściowe otrzymaliśmy ramkę danych zawierające informacje o wszystkich bankach. Przy pomocy funkcji <code>ramkaTylkoRzeczowniki()</code> wyodrębniliśmy z postów wszystkie rzeczowniki i zapisaliśmy je jako dodatkową kolumnę <code>rzeczownik</code> w formie rzeczownik1|rzeczownik2. Funkcja ta korzysta jeszcze z innych funkcji: <code>poprawaOrtografii()</code> przy pomocy której poprawiliśmy ortografię w kolumnie <code>body</code> zawierającej treści postów, oraz funkcji <code>wydobywanieRzeczownikow()</code> która wydobywa rzeczowniki ze zdania. Niestety w danych znajdują się jeszcze stopwordsy (np. a, oraz, to) i rzeczowniki odczasownikowe (np. pływać, spać). W tym celu powstała funkcja <code>finalDFrzecz()</code> korzystająca z funkcji <code>usuwanieStopwordsow()</code> oraz <code>zamianaCzasownikow()</code>. Usuwa ona niechciane wyrazy oraz poprawia pisownię rzeczowników odczasownikowych (pływać -&gt; pływanie, spać -&gt; spanie). Usunęliśmy również zbędne kolumny <code>subject</code>, <code>user_link</code> oraz <code>source</code>. Na otrzymanej w ten sposób ramce dodatkowo rozdzielamy rzeczowniki na osobne wiersze aby usprawnić działanie niektórych funkcji. Do tego celu służy funkcja <code>separateNouns()</code>.</p>
+<p>Jako dane wejściowe otrzymaliśmy ramkę danych zawierające informacje o wszystkich bankach. Przy pomocy funkcji <code>ramkaTylkoRzeczowniki()</code> wyodrębniliśmy z postów wszystkie rzeczowniki i zapisaliśmy je jako dodatkową kolumnę <code>rzeczownik</code> w formie rzeczownik1|rzeczownik2. Funkcja ta korzysta jeszcze z innych funkcji: <code>poprawaOrtografii()</code> przy pomocy której poprawiliśmy ortografię w kolumnie <code>body</code> zawierającej treści postów, oraz funkcji <code>wydobywanieRzeczownikow()</code> która wydobywa rzeczowniki ze zdania. Niestety w danych znajdują się jeszcze stopwordsy (np. a, oraz, to) i rzeczowniki odczasownikowe (np. pływać, spać). W tym celu powstała funkcja <code>finalDFrzecz()</code> korzystająca z funkcji <code>usuwanieStopwordsow()</code> oraz <code>zamianaCzasownikow()</code>. Usuwa ona niechciane wyrazy oraz poprawia pisownię rzeczowników odczasownikowych (pływać -&gt; pływanie, spać -&gt; spanie). Usunęliśmy również zbędne kolumny <code>subject</code>, <code>user_link</code> oraz <code>source</code>. Na otrzymanej w ten sposób ramce danych dodatkowo rozdzielamy rzeczowniki na osobne wiersze aby usprawnić działanie niektórych funkcji. Do tego celu służy funkcja <code>separateNouns()</code>.</p>
 </div>
 <div id="kluczowe-sowa" class="section level1">
 <h1>Kluczowe słowa</h1>
