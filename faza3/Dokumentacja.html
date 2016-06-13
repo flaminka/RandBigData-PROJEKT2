@@ -127,7 +127,7 @@ $(document).ready(function () {
 <p>Projekt ten miał na celu wyszukanie dni i zweryfikowanie powodu wzmożonej aktywności użytkowników na fanpage’u banków. Analizie poddaliśmy kilka banków: Alior Bank S.A., ING Bank Śląski oraz Bank Zachodni WBK. Dane które otrzymaliśmy były zbierane od czerwca 2013r. do lutego 2016r. Skupiliśmy się głównie na analizie rzeczowników. Posty nie zawierające rzeczowników zostały usunięte. Aby ułatwić pracę z danymi zbudowaliśmy ramkę danych zawierającą poniższe zmienne:</p>
 <ul>
 <li>id - id postu,</li>
-<li>parent_id - id rodzica postu, jeśli taki nie istnieje jest brak danych,</li>
+<li>parent_id - id nadrzędnego postu, jeśli taki nie istnieje jest brak danych,</li>
 <li>created_at - data utworzenia postu,</li>
 <li>tread_id - numer wątku do którego należy post,</li>
 <li>user_name - nazwa autora postu,</li>
@@ -142,22 +142,24 @@ $(document).ready(function () {
 <li>funkcje:</li>
 </ol>
 <ul>
-<li>ramkaTylkoRzeczowniki</li>
-<li>poprawaOrtografii</li>
-<li>wydobywanieRzeczownikow</li>
-<li>usuwanieStopwordsow</li>
-<li>zamianaCzasownikow</li>
-<li>finalDFrzecz</li>
-<li>separateNouns</li>
 <li>filterByPlotDF</li>
+<li>filterByPlotList</li>
+<li>finalDFrzecz</li>
+<li>poprawaOrtografii</li>
+<li>ramkaTylkoRzeczowniki</li>
+<li>separateNouns</li>
+<li>usuwanieStopwordsow</li>
+<li>wydobywanieRzeczownikow</li>
+<li>zamianaCzasownikow</li>
 </ul>
 <ol start="2" style="list-style-type: decimal">
-<li>zbiory danych:</li>
+<li>zbiory danych wykorzystywane w funkcjach oraz testach:</li>
 </ol>
 <ul>
-<li>daneALIOR</li>
-<li>daneBZW</li>
-<li>daneING</li>
+<li>dane</li>
+<li>Alior</li>
+<li>AliorNouns</li>
+<li>datalist</li>
 </ul>
 <p>Działanie oraz argumenty poszczególnych funkcji zostały szczegółowo opisane w dokumentacji pakietu. Natomiast ich przeznaczenie zostało omówione w następnych rozdziałach.</p>
 </div>
