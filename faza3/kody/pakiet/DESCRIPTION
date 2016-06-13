@@ -1,0 +1,21 @@
+Package: ClockworkOranges
+Title: Pakiet do budowy aplikacji na 3 faze II projektu RandBigData
+Version: 1.0
+Authors@R: c(person("Michał", "Stolarczyk", role = c("ctb")),
+      person("Michał", "M&uuml;ck", role = c("ctb")),
+      person("Dorota", "Łępicka", role = c("ctb")),
+      person("Ewa", "Baranowska", role = c("cre"), email= "baranowskae@student.mini.pw.edu.pl"))
+Description: Pakiet ClockworkOranges pozwala na przeprowadzenie całego procesu analizy danych dotyczących postów o bankach. Znajdują się
+	w nim funkcje przetwarzające surowe dane do postaci przyjmowanej przez algorytm wyboru charakterystycznych wątków, funkcje
+	odpowiadające za ten algorytm oraz funkcje przetwarzające wyniki zwrócone przez algorytm, tak by można było je wykorzystać do
+	prezentacji analiz w aplikacji shiny.
+Depends: R (>= 3.2.2)
+Encoding: UTF-8
+Imports: stringi,
+    parallel,
+    httr,
+	dplyr
+License: GPL-2
+LazyData: true
+Suggests: testthat
+RoxygenNote: 5.0.1
